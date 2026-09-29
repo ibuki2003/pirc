@@ -120,3 +120,26 @@ Deno.test("thinking deltas are forwarded across batches", () => {
   const delta = { seq: 2, op: "append", target: "live.content", index: 0, text: "reasoning" } as SyncOp;
   assertEquals(projectOps([delta], MOBILE_STREAM), [delta]);
 });
+
+Deno.test("partial live calls project line counts and patch summaries without source, and bound running bash commands", () => {
+  const calls = [
+    { type: "toolCall", id: "w", name: "write", arguments: { path: "a.ts", content: "one\ntwo" } },
+    { type: "toolCall", id: "e", name: "edit", arguments: { path: "b.ts", oldText: "before\n", newText: "after\nnext" } },
+    { type: "toolCall", id: "p", name: "apply_patch", arguments: {
+      patch: "*** Begin Patch\n*** Update File: c.ts\n@@\n-old\n+new\n*** End Patch",
+    } },
+  ];
+  const projected = calls.map((value, index) => projectOps([
+    { seq: index + 1, op: "set", target: "live.content", index, value } as SyncOp,
+  ], MOBILE_STREAM)[0]);
+  assertEquals(projected.map(op => op.op === "set" && op.target === "live.content" && op.value.type === "toolCall" ? op.value.changes : undefined), [
+    [{ path: "a.ts", added: 2 }],
+    [{ path: "b.ts", added: 2, removed: 1 }],
+    [{ path: "c.ts", added: 1, removed: 1 }],
+  ]);
+  assertEquals(JSON.stringify(projected).includes("before"), false);
+  assertEquals(JSON.stringify(projected).includes("*** Begin Patch"), false);
+  const bash = projectOps([{ seq: 4, op: "set", target: "tool", key: "bash",
+    value: { toolName: "bash", command: "é".repeat(100), startedAt: 1, output: "", totalBytes: 0, truncatedHead: false } }], MOBILE_STREAM);
+  assertEquals(bash[0].op === "set" && bash[0].target === "tool" ? bash[0].value?.command : undefined, "é".repeat(64));
+});

@@ -5,12 +5,15 @@ export class LiveTracker {
   private live: LiveMessage | null = null;
   private tools = new Map<string, ToolProgress>();
   private lastToolUpdate = new Map<string, number>();
+  private pendingCalls = new Map<number, Extract<LiveBlock, { type: "toolCall" }>>();
+  private callTimer?: ReturnType<typeof setTimeout>;
   constructor(private push: (op: OpInput) => void) {}
   snapshot(): { live: LiveMessage | null; tools: Record<string, ToolProgress> } {
     return { live: this.live && { ...this.live, content: this.live.content.map(b => ({ ...b })) }, tools: Object.fromEntries(this.tools) };
   }
   start(event: MessageStartEvent): void {
     if (event.message.role !== "assistant") return;
+    this.clearCalls();
     this.live = { provider: event.message.provider, model: event.message.model, startedAt: event.message.timestamp, content: [] };
     this.push({ op: "set", target: "live", value: { ...this.live, content: [] } });
   }
@@ -27,18 +30,40 @@ export class LiveTracker {
       if (block?.type === "text") block.text += update.delta;
       else if (block?.type === "thinking") block.thinking += update.delta;
       this.push({ op: "append", target: "live.content", index: i, text: update.delta });
-    } else if (update.type === "toolcall_start" || update.type === "toolcall_end") {
-      const call = update.partial.content[i];
+    } else if (update.type === "toolcall_start" || update.type === "toolcall_delta" || update.type === "toolcall_end") {
+      const call = update.type === "toolcall_end" ? update.toolCall : update.partial.content[i];
       if (call?.type !== "toolCall") return;
       const block: LiveBlock = { type: "toolCall", id: call.id, name: call.name,
-        ...(update.type === "toolcall_end" ? { arguments: call.arguments } : {}) };
-      this.live.content[i] = block;
-      this.push({ op: "set", target: "live.content", index: i, value: { ...block } });
+        ...(update.type !== "toolcall_start" ? { arguments: call.arguments } : {}) };
+      if (update.type === "toolcall_delta") {
+        this.pendingCalls.set(i, block);
+        this.callTimer ??= setTimeout(() => this.flushCalls(), 250);
+      } else {
+        this.pendingCalls.delete(i);
+        this.live.content[i] = block;
+        this.push({ op: "set", target: "live.content", index: i, value: { ...block } });
+      }
     }
   }
-  end(): void { if (this.live) { this.live = null; this.push({ op: "set", target: "live", value: null }); } }
+  private flushCalls(): void {
+    this.callTimer = undefined;
+    for (const [index, block] of this.pendingCalls) {
+      if (!this.live) break;
+      this.live.content[index] = block;
+      this.push({ op: "set", target: "live.content", index, value: block });
+    }
+    this.pendingCalls.clear();
+  }
+  private clearCalls(): void {
+    clearTimeout(this.callTimer);
+    this.callTimer = undefined;
+    this.pendingCalls.clear();
+  }
+  end(): void { if (this.live) { this.clearCalls(); this.live = null; this.push({ op: "set", target: "live", value: null }); } }
+  stop(): void { this.clearCalls(); }
   toolStart(event: ToolExecutionStartEvent): void {
-    const value: ToolProgress = { toolName: event.toolName, startedAt: Date.now(), output: "", totalBytes: 0, truncatedHead: false };
+    const value: ToolProgress = { toolName: event.toolName, startedAt: Date.now(), output: "", totalBytes: 0, truncatedHead: false,
+      ...(event.toolName === "bash" ? { command: String(event.args?.command ?? "") } : {}) };
     this.tools.set(event.toolCallId, value);
     this.push({ op: "set", target: "tool", key: event.toolCallId, value });
   }

@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionContext, MessageStartEvent, MessageUpdateEvent, ToolExecutionStartEvent } from "@earendil-works/pi-coding-agent";
 import type { OpInput, SyncOp } from "../../api/src/index.ts";
 import { EntryTracker } from "./entry-tracker.ts";
+import { LiveTracker } from "./live-tracker.ts";
 import { Outbox } from "./outbox.ts";
 
 describe("Outbox", () => {
@@ -45,5 +46,41 @@ describe("EntryTracker", () => {
     tracker.reconcile();
     expect(ops[1]).toMatchObject({ op: "append", target: "entries", from: 2, items: [{ index: 2, entry: entries[2] }] });
     expect(tracker.snapshot(2, 1)).toMatchObject({ mode: "delta", entryCount: 3, entries: [{ index: 2 }] });
+  });
+});
+
+describe("LiveTracker", () => {
+  it("coalesces partial tool arguments, publishes final arguments immediately, and keeps bash command with progress", () => {
+    vi.useFakeTimers();
+    try {
+      const ops: OpInput[] = [];
+      const tracker = new LiveTracker(op => ops.push(op));
+      tracker.start({ message: { role: "assistant", provider: "p", model: "m", timestamp: 1 } } as MessageStartEvent);
+      const update = (type: "toolcall_start" | "toolcall_delta" | "toolcall_end", args: Record<string, unknown>) => {
+        const call = { type: "toolCall", id: "call", name: "write", arguments: args };
+        tracker.update({ assistantMessageEvent: {
+          type, contentIndex: 0, partial: { content: [call] }, ...(type === "toolcall_end" ? { toolCall: call } : {}),
+        } } as unknown as MessageUpdateEvent);
+      };
+      update("toolcall_start", {});
+      ops.length = 0;
+      update("toolcall_delta", { path: "a.ts", content: "one" });
+      vi.advanceTimersByTime(100);
+      update("toolcall_delta", { path: "a.ts", content: "one\ntwo" });
+      expect(ops).toEqual([]);
+      vi.advanceTimersByTime(150);
+      expect(ops).toEqual([{ op: "set", target: "live.content", index: 0,
+        value: { type: "toolCall", id: "call", name: "write", arguments: { path: "a.ts", content: "one\ntwo" } } }]);
+      ops.length = 0;
+      update("toolcall_delta", { path: "a.ts", content: "one\ntwo\nthree" });
+      update("toolcall_end", { path: "a.ts", content: "final" });
+      vi.advanceTimersByTime(250);
+      expect(ops).toEqual([{ op: "set", target: "live.content", index: 0,
+        value: { type: "toolCall", id: "call", name: "write", arguments: { path: "a.ts", content: "final" } } }]);
+
+      tracker.toolStart({ toolCallId: "bash", toolName: "bash", args: { command: "echo hello" } } as ToolExecutionStartEvent);
+      expect(tracker.snapshot().tools.bash.command).toBe("echo hello");
+      tracker.stop();
+    } finally { vi.useRealTimers(); }
   });
 });

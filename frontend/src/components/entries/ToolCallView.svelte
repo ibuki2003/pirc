@@ -1,6 +1,6 @@
 <script lang="ts">
   import "./ToolCallView.scss";
-  import type { ProjectedAssistantEntry, ProjectedEntry, RedactedToolCall } from "@pirc/api";
+  import type { ProjectedAssistantEntry, ProjectedEntry, RedactedToolCall, ToolProgress } from "@pirc/api";
   import ToolBashSummary from "./ToolBashSummary.svelte";
   import ToolCallContent from "./ToolCallContent.svelte";
   import ToolEditSummary from "./ToolEditSummary.svelte";
@@ -9,12 +9,13 @@
   import ToolWriteSummary from "./ToolWriteSummary.svelte";
 
   type Call = Extract<ProjectedAssistantEntry["message"]["content"][number], { type: "toolCall" }>;
-  let { calls, results, instanceId, entryId, expand }: {
+  let { calls, results, instanceId, entryId, expand, tools }: {
     calls: Call[];
     results: ProjectedEntry[];
     instanceId: string;
     entryId: string;
     expand: (id: string) => Promise<void>;
+    tools: Map<string, ToolProgress>;
   } = $props();
   let error = $state("");
   // Full-entry retrieval replaces the projected call; retain its server-computed summary.
@@ -24,6 +25,7 @@
     if (changes.some(Boolean)) projectedChanges = changes;
   });
   const name = $derived(calls[0].name);
+  const running = $derived(calls.some(call => tools.has(call.id)));
   const toolResults = $derived(calls.map(call => results.filter(result =>
     (result.entry.type === "redacted" && result.entry.role === "toolResult" && result.entry.toolCallId === call.id) ||
     (result.entry.type === "message" && result.entry.message.role === "toolResult" && result.entry.message.toolCallId === call.id))));
@@ -60,9 +62,14 @@
       <ToolBashSummary command={String(calls[0].arguments?.command ?? "")} />
     {/if}
     {#if showSize && bytes}<span class="tool-size">({size(bytes)})</span>{/if}
+    {#if running}<small class="muted-meta live-status">実行中</small>{/if}
   </summary>
   {#each calls as call, i (call.id)}
+    {@const progress = tools.get(call.id)}
     <ToolCallContent {call} results={toolResults[i]} {instanceId} />
+    {#if progress}
+      <pre>{progress.truncatedHead ? "…\n" : ""}{progress.output}</pre>
+    {/if}
   {/each}
   {#if error}<small role="alert">{error}</small>{/if}
 </details>

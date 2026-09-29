@@ -26,7 +26,7 @@
     {:else if name === "apply_patch"}
       <ToolPatchSummary changes={call?.changes} />
     {:else if name === "bash"}
-      <ToolBashSummary command={String(args?.command ?? "")} />
+      <ToolBashSummary command={String(args?.command || progress?.command || "")} />
     {/if}
     {#if progress}<small class="muted-meta live-status">実行中</small>{/if}
   </summary>

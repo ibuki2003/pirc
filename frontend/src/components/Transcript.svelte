@@ -30,6 +30,10 @@
     }
     return rows;
   });
+  const visibleToolCalls = $derived(new Set(rows.flatMap(row => {
+    if (row.kind !== "entry" || row.item.entry.type !== "message" || row.item.entry.message.role !== "assistant") return [];
+    return row.item.entry.message.content.flatMap(block => block.type === "toolCall" ? [block.id] : []);
+  })));
 </script>
 <div class="transcript">
   {#if hasMore}<button disabled={loading} onclick={older}>古い履歴を読み込む</button>{/if}
@@ -41,10 +45,10 @@
         {:else}thinking: {row.thinking}{/if}
       </small>
     {:else}
-      <EntryView item={row.item} results={entries} {instanceId} {expand} />
+      <EntryView item={row.item} results={entries} {instanceId} {expand} {tools} />
     {/if}
   {/each}
-  <LiveMessageView {live} {tools} />
+  <LiveMessageView {live} {tools} {visibleToolCalls} />
   {#if streaming}
     <div class="streaming-dots" role="status" aria-label="生成中">
       <span></span><span></span><span></span>

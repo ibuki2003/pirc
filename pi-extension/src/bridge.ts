@@ -71,6 +71,7 @@ export class Bridge {
     if (this.stopped) return;
     this.stopped = true;
     clearInterval(this.poll);
+    this.live.stop();
     this.outbox.flush();
     if (event.reason === "reload") {
       const file = this.ctx.sessionManager.getSessionFile();

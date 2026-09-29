@@ -1,13 +1,14 @@
 <script lang="ts">
   import "./EntryView.scss";
   import "./ToolCallView.scss";
-  import type { ProjectedAssistantEntry, ProjectedEntry } from "@pirc/api";
+  import type { ProjectedAssistantEntry, ProjectedEntry, ToolProgress } from "@pirc/api";
   import { markdown } from "../../lib/markdown.ts";
   import BlobImage from "./BlobImage.svelte";
   import ToolCallView from "./ToolCallView.svelte";
   type Call = Extract<ProjectedAssistantEntry["message"]["content"][number], { type: "toolCall" }>;
-  let { item, results, instanceId, expand }: {
-    item: ProjectedEntry; results: ProjectedEntry[]; instanceId: string; expand: (id: string) => Promise<void>
+  let { item, results, instanceId, expand, tools }: {
+    item: ProjectedEntry; results: ProjectedEntry[]; instanceId: string; expand: (id: string) => Promise<void>;
+    tools: Map<string, ToolProgress>;
   } = $props();
   let entry = $derived(item.entry);
   let error = $state("");
@@ -64,7 +65,7 @@
           {:else if block.type === "toolCall"}
             {#if block.name !== "read" || !readAt(entry.message.content, index - 1)}
               <ToolCallView calls={block.name === "read" ? readCalls(entry.message.content, index) : [block]}
-                {results} {instanceId} entryId={entry.id} {expand} />
+                {results} {instanceId} entryId={entry.id} {expand} {tools} />
             {/if}
           {/if}
         {/each}

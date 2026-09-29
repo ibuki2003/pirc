@@ -3,13 +3,17 @@
   import type { LiveMessage, ToolProgress } from "@pirc/api";
   import { markdown } from "../lib/markdown.ts";
   import LiveToolView from "./entries/LiveToolView.svelte";
-  let { live, tools }: { live: LiveMessage | null; tools: Map<string, ToolProgress> } = $props();
+  let { live, tools, visibleToolCalls }: {
+    live: LiveMessage | null; tools: Map<string, ToolProgress>; visibleToolCalls: Set<string>
+  } = $props();
+  const visibleBlocks = $derived(live?.content.filter(block =>
+    block.type !== "toolCall" || !visibleToolCalls.has(block.id)) ?? []);
   const orphanTools = $derived([...tools.entries()].filter(([id]) =>
-    !live?.content.some(block => block.type === "toolCall" && block.id === id)));
+    !visibleToolCalls.has(id) && !live?.content.some(block => block.type === "toolCall" && block.id === id)));
 </script>
-{#if live}
+{#if live && (!live.content.length || visibleBlocks.length)}
   <article class="entry assistant live"><header>assistant</header>
-    {#each live.content as block}
+    {#each visibleBlocks as block}
       {#if block.type === "text"}<div class="markdown">{@html markdown(block.text)}</div>
       {:else if block.type === "thinking"}<small class="muted-meta thinking-content markdown">{@html markdown(block.thinking)}</small>
       {:else}<LiveToolView call={block} progress={tools.get(block.id)} />{/if}

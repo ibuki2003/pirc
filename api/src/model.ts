@@ -51,6 +51,7 @@ export type LiveBlock =
       changes?: import("./projection.ts").RedactedToolCall["changes"] };
 export interface ToolProgress {
   toolName: string;
+  command?: string;
   startedAt: number;
   output: string;
   totalBytes: number;

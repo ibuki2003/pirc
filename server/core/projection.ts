@@ -55,6 +55,7 @@ function redactedCall(block: { id: string; name: string; arguments?: Record<stri
   const name = block.name;
   const args = block.arguments;
   const base = { type: "toolCall" as const, id: block.id, name, redacted: true as const, originalBytes: encoder.encode(JSON.stringify(block)).length };
+  if (args === undefined) return base;
   if (name === "read") return { ...base, arguments: args };
   if (name === "bash") {
     return {
@@ -131,7 +132,8 @@ export function projectEntry(item: ProjectedEntry, _options: StreamOptions): Pro
 }
 
 export function projectTool(value: ToolProgress, options: StreamOptions): ToolProgress {
-  return { ...value, output: tail(value.output, options.toolOutputBytes) };
+  return { ...value, output: tail(value.output, options.toolOutputBytes),
+    ...(value.command !== undefined ? { command: head(value.command, BASH_COMMAND_BYTES) } : {}) };
 }
 
 function projectLiveBlock(value: LiveBlock): LiveBlock {
