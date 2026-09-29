@@ -7,7 +7,7 @@
     !live?.content.some(block => block.type === "toolCall" && block.id === id)));
 </script>
 {#if live}
-  <article class="entry assistant live"><header>assistant <small class="muted-meta live-status">生成中</small></header>
+  <article class="entry assistant live"><header>assistant</header>
     {#each live.content as block}
       {#if block.type === "text"}<div class="markdown">{@html markdown(block.text)}</div>
       {:else if block.type === "thinking"}<small class="muted-meta thinking-content markdown">{@html markdown(block.thinking)}</small>

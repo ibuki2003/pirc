@@ -1,9 +1,11 @@
 <script lang="ts">
-  import type { ProjectedEntry } from "@pirc/api";
+  import type { LiveMessage, ProjectedEntry, ToolProgress } from "@pirc/api";
   import EntryView from "./entries/EntryView.svelte";
-  let { entries, instanceId, expand, loadMore, hasMore }: {
+  import LiveMessageView from "./LiveMessage.svelte";
+  let { entries, instanceId, expand, loadMore, hasMore, live, tools, streaming }: {
     entries: ProjectedEntry[]; instanceId: string; expand: (id: string) => Promise<void>;
-    loadMore: () => Promise<void>; hasMore: boolean
+    loadMore: () => Promise<void>; hasMore: boolean;
+    live: LiveMessage | null; tools: Map<string, ToolProgress>; streaming: boolean;
   } = $props();
   let loading = $state(false);
   async function older() { loading = true; try { await loadMore(); } finally { loading = false; } }
@@ -41,4 +43,10 @@
       <EntryView item={row.item} results={entries} {instanceId} {expand} />
     {/if}
   {/each}
+  <LiveMessageView {live} {tools} />
+  {#if streaming}
+    <div class="streaming-dots" role="status" aria-label="生成中">
+      <span></span><span></span><span></span>
+    </div>
+  {/if}
 </div>
