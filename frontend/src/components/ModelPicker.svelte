@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./Picker.scss";
   import type { ModelRef, SessionState } from "@pirc/api";
   import Textfield from "@smui/textfield";
   import { connection } from "../lib/connection.svelte.ts";

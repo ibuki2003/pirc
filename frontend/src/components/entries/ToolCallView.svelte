@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./ToolCallView.scss";
   import type { ProjectedAssistantEntry, ProjectedEntry, RedactedToolCall } from "@pirc/api";
   import ToolBashSummary from "./ToolBashSummary.svelte";
   import ToolCallContent from "./ToolCallContent.svelte";

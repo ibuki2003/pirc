@@ -1,0 +1,35 @@
+.view {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  max-width: 1050px;
+  margin: auto;
+  background: #fff;
+
+  nav {
+    display: flex;
+    gap: 1rem;
+    padding: .75rem;
+    align-items: center;
+    border-bottom: 1px solid #aaa5;
+
+    strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  }
+
+  @media (prefers-color-scheme: dark) { background: #202937; }
+}
+
+.status-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .65rem;
+  padding: .4rem .75rem;
+  font-size: .85rem;
+  background: #e9edf3;
+
+  @media (prefers-color-scheme: dark) { background: #303e52; }
+}
+
+.status-details { display: flex; align-items: center; flex-wrap: wrap; gap: .65rem; }
+.scroll { flex: 1; overflow-y: auto; padding: .75rem; }

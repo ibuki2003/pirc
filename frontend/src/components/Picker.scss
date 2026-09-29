@@ -1,0 +1,48 @@
+.picker {
+  position: relative;
+  width: min(100%, 18rem);
+
+  &.thinking-picker {
+    width: 8rem;
+    .picker-options { width: 100%; }
+  }
+
+  .mdc-text-field { width: 100%; }
+  .mdc-text-field__affix--suffix { font-size: 1rem; pointer-events: none; }
+}
+
+.picker-options {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 5;
+  width: max(100%, 16rem);
+  max-width: min(90vw, 28rem);
+  max-height: 16rem;
+  overflow-y: auto;
+  background: #fff;
+  color: #1c2533;
+  box-shadow: 0 3px 12px #0003;
+  border-radius: 6px;
+
+  @media (prefers-color-scheme: dark) { background: #202937; color: #edf0f7; }
+}
+
+.picker-option {
+  display: flex;
+  align-items: baseline;
+  gap: .6rem;
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  text-align: left;
+  overflow-wrap: anywhere;
+
+  &:hover, &:focus-visible, &.highlighted { background: #e9edf3; }
+  small { color: #667085; font-size: .75em; }
+
+  @media (prefers-color-scheme: dark) {
+    &:hover, &:focus-visible, &.highlighted { background: #303e52; }
+    small { color: #aab5c5; }
+  }
+}

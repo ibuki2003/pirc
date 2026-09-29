@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./SessionList.scss";
   import { sessions } from "../lib/sessions.svelte.ts";
   import SessionCard from "../components/SessionCard.svelte";
   import type { SessionSummary } from "@pirc/api";

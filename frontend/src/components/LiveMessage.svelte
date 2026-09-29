@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./entries/EntryView.scss";
   import type { LiveMessage, ToolProgress } from "@pirc/api";
   import { markdown } from "../lib/markdown.ts";
   import LiveToolView from "./entries/LiveToolView.svelte";

@@ -1,0 +1,33 @@
+.transcript { display: grid; grid-template-columns: minmax(0, 1fr); gap: .75rem; }
+
+.settings-change { padding-left: .75rem; }
+
+.streaming-dots {
+  display: flex;
+  align-items: center;
+  gap: .25em;
+  padding-left: .75rem;
+  min-height: 1em;
+  color: #355da9;
+
+  span {
+    width: .3em;
+    height: .3em;
+    border-radius: 50%;
+    background: currentColor;
+    animation: dot-bounce 1s ease-in-out infinite;
+
+    &:nth-child(2) { animation-delay: .15s; }
+    &:nth-child(3) { animation-delay: .3s; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    span { animation: none; }
+  }
+  @media (prefers-color-scheme: dark) { color: #a6c5ff; }
+}
+
+@keyframes dot-bounce {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-.25em); }
+}

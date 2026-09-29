@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./ToolCallView.scss";
   import type { LiveBlock, ToolProgress } from "@pirc/api";
   import ToolBashSummary from "./ToolBashSummary.svelte";
   import ToolEditSummary from "./ToolEditSummary.svelte";

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./SessionView.scss";
   import { onMount, tick } from "svelte";
   import { MirrorStore } from "../lib/mirror/mirror-store.svelte.ts";
   import { sessions } from "../lib/sessions.svelte.ts";

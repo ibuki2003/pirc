@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./Composer.scss";
   import type { ImageContent } from "@pirc/api";
   import { connection } from "../lib/connection.svelte.ts";
   import { resizeImage } from "../lib/image.ts";

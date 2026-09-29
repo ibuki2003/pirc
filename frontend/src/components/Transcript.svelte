@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./Transcript.scss";
   import type { LiveMessage, ProjectedEntry, ToolProgress } from "@pirc/api";
   import EntryView from "./entries/EntryView.svelte";
   import LiveMessageView from "./LiveMessage.svelte";

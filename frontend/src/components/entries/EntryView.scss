@@ -1,0 +1,23 @@
+.entry {
+  content-visibility: auto;
+  overflow-wrap: anywhere;
+  min-width: 0;
+  padding: .25rem .75rem;
+  border-left: 3px solid #8894a9;
+  margin: .5rem 0;
+
+  &.assistant { border-left-color: transparent; }
+  &.user { border-left-color: #355da9; }
+  &.system { border-left-color: #087566; }
+
+  header { font-size: .8rem; font-weight: bold; opacity: .7; margin-bottom: .4rem; }
+  img { max-width: min(100%, 500px); max-height: 500px; }
+  details { margin: .4rem 0; }
+
+  @media (prefers-color-scheme: dark) {
+    border-left-color: #aab5c5;
+    &.assistant { border-left-color: transparent; }
+    &.user { border-left-color: #a6c5ff; }
+    &.system { border-left-color: #8fd7c7; }
+  }
+}

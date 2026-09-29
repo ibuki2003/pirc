@@ -1,0 +1,25 @@
+.composer {
+  border-top: 1px solid #aaa5;
+  padding: .5rem;
+
+  textarea {
+    display: block;
+    width: 100%;
+    min-height: 4rem;
+    resize: vertical;
+    padding: .6rem;
+    border-radius: 8px;
+    border: 1px solid #8894a9;
+    background: transparent;
+    color: inherit;
+  }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .65rem;
+    padding: .4rem .75rem;
+    font-size: .85rem;
+  }
+}

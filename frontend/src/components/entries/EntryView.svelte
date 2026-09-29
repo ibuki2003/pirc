@@ -1,4 +1,6 @@
 <script lang="ts">
+  import "./EntryView.scss";
+  import "./ToolCallView.scss";
   import type { ProjectedAssistantEntry, ProjectedEntry } from "@pirc/api";
   import { markdown } from "../../lib/markdown.ts";
   import BlobImage from "./BlobImage.svelte";

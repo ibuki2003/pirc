@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./SessionCard.scss";
   import type { SessionSummary } from "@pirc/api";
   let { session }: { session: SessionSummary } = $props();
 </script>
