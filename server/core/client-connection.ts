@@ -30,7 +30,8 @@ export class ClientConnection {
         | "host.setName"
         | "host.listModels"
         | "host.listCommands"
-        | "host.completePath",
+        | "host.completePath"
+        | "host.listSessions",
     >(method: M, p: { instanceId: string }) => {
       const { instanceId, ...params } = p;
       return this.registry.host(instanceId).peer.request(
@@ -87,6 +88,12 @@ export class ClientConnection {
         "session.listModels": (p) => forward("host.listModels", p),
         "session.listCommands": (p) => forward("host.listCommands", p),
         "session.completePath": (p) => forward("host.completePath", p),
+        "session.listSessions": (p) => forward("host.listSessions", p),
+        "session.switchSession": async ({ instanceId, path }) => {
+          const requestId = crypto.randomUUID();
+          await this.registry.host(instanceId).peer.request("host.switchSession", { requestId, path });
+          return { requestId };
+        },
         ping: () => ({}),
       },
     });

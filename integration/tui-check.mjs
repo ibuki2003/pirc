@@ -78,7 +78,7 @@ try {
     `pi --offline --no-extensions -e ${resolve(root, "pi-extension/src/index.ts")} --provider pirc-mock --model test-model --session-dir ${resolve(runtime, "sessions")} --no-context-files`,
     "/dev/null"], {
     PI_CODING_AGENT_DIR: runtime,
-    PIRC_URL: `ws://127.0.0.1:${serverPort}/api/host`,
+    PIRC_HOST: `ws://127.0.0.1:${serverPort}`,
     TERM: "xterm-256color",
   });
   const instance = await until(async () => {
@@ -137,6 +137,21 @@ try {
   assert.equal(requests[1].body.model, "test-model-alt");
   assert.ok(requests[1].body.messages.some(m => JSON.stringify(m).includes("PIRC_SECOND_PROMPT")));
   await until(() => output.pi.includes("test-model-alt"), "TUI displays changed model");
+  const saved = await rpc("session.listSessions", { instanceId: instance.instanceId });
+  const previous = saved.find(s => s.id === instance.sessionId);
+  assert.ok(previous, "current session appears in saved sessions");
+  await rpc("session.switchSession", { instanceId: instance.instanceId });
+  const fresh = await until(async () => {
+    const items = await (await fetch(`${url}/api/sessions`)).json();
+    return items.find(s => s.hostId === instance.hostId && s.instanceId !== instance.instanceId);
+  }, "new session registration", 30000);
+  const freshSnapshot = await (await fetch(`${url}/api/sessions/${fresh.instanceId}/sync`)).json();
+  assert.ok(!freshSnapshot.entries.some(e => e.type === "message" && e.message?.role === "user"), "new session has no user messages");
+  await rpc("session.switchSession", { instanceId: fresh.instanceId, path: previous.path });
+  await until(async () => {
+    const items = await (await fetch(`${url}/api/sessions`)).json();
+    return items.find(s => s.hostId === instance.hostId && s.instanceId !== fresh.instanceId && s.sessionId === previous.id);
+  }, "resumed session registration", 30000);
   console.log(JSON.stringify({
     result: "PASS", instanceId: instance.instanceId,
     mockRequest: { url: requests[0].url, model: requests[0].body.model, messageCount: requests[0].body.messages.length },

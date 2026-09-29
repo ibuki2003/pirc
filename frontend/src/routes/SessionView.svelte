@@ -3,6 +3,8 @@
   import { onMount, tick } from "svelte";
   import { MirrorStore } from "../lib/mirror/mirror-store.svelte.ts";
   import { sessions } from "../lib/sessions.svelte.ts";
+  import { connection } from "../lib/connection.svelte.ts";
+  import type { ClientToServer } from "@pirc/api";
   import StatusBar from "../components/StatusBar.svelte";
   import Transcript from "../components/Transcript.svelte";
   import Composer from "../components/Composer.svelte";
@@ -12,6 +14,41 @@
   let store = $derived(new MirrorStore(instanceId));
   let scrollElement = $state<HTMLDivElement | null>(null);
   let atBottom = true;
+  type SavedSession = ClientToServer["requests"]["session.listSessions"]["result"][number];
+  let dialog: HTMLDialogElement;
+  let modal = $state<"new" | "resume">("new");
+  let saved = $state<SavedSession[]>([]);
+  let cwdOnly = $state(true);
+  let modalError = $state("");
+  let loading = $state(false);
+  let switching = $state(false);
+  let switchRequested = $state(false);
+  let visibleSessions = $derived(saved.filter(item => !cwdOnly || item.cwd === store.mirror?.state.cwd));
+  async function openModal(kind: "new" | "resume") {
+    modal = kind;
+    modalError = "";
+    cwdOnly = true;
+    saved = [];
+    dialog.showModal();
+    if (kind === "resume") {
+      loading = true;
+      try {
+        saved = await connection.peer?.request("session.listSessions", { instanceId } as never) ?? [];
+      } catch (error) { modalError = String(error); }
+      finally { loading = false; }
+    }
+  }
+  async function switchTo(path?: string) {
+    switching = true;
+    modalError = "";
+    try {
+      if (!connection.peer) throw new Error("接続されていません");
+      await connection.peer.request("session.switchSession", { instanceId, path });
+      switchRequested = true;
+      dialog.close();
+    } catch (error) { modalError = String(error); }
+    finally { switching = false; }
+  }
   let lastScrollHeight = 0;
   function trackScroll() {
     if (scrollElement) {
@@ -51,9 +88,44 @@
   let successor = $derived(store.closed && store.mirror
     ? sessions.items.find(s => s.hostId === store.mirror!.state.hostId && s.instanceId !== instanceId)
     : undefined);
+  $effect(() => {
+    if (switchRequested && successor) location.hash = `#/s/${encodeURIComponent(successor.instanceId)}`;
+  });
 </script>
 <div class="view">
-  <nav><a href="#/">← セッション一覧</a><strong>{store.mirror?.state.name || store.mirror?.state.sessionId || instanceId}</strong></nav>
+  <nav>
+    <a href="#/">← セッション一覧</a><strong>{store.mirror?.state.name || store.mirror?.state.sessionId || instanceId}</strong>
+    {#if store.mirror && !store.closed}
+      <button type="button" disabled={switchRequested || store.mirror.state.status.streaming} onclick={() => void openModal("new")}>新規</button>
+      <button type="button" disabled={switchRequested || store.mirror.state.status.streaming} onclick={() => void openModal("resume")}>再開</button>
+    {/if}
+  </nav>
+  <dialog bind:this={dialog} class="session-dialog">
+    {#if modal === "new"}
+      <h2>新しいセッション</h2>
+      <p>現在のセッションから切り替えて、空のセッションを開きますか？</p>
+    {:else}
+      <h2>セッションを再開</h2>
+      <label><input type="checkbox" bind:checked={cwdOnly} /> 現在の作業ディレクトリのみ</label>
+      {#if loading}<p>セッションを読み込み中…</p>
+      {:else if !visibleSessions.length}<p>該当するセッションはありません。</p>
+      {:else}
+        <div class="saved-sessions">
+          {#each visibleSessions as item (item.path)}
+            <button type="button" disabled={switching} onclick={() => void switchTo(item.path)}>
+              <strong>{item.name || item.firstMessage || item.id}</strong>
+              <small>{item.cwd || "作業ディレクトリ不明"} · {new Date(item.modified).toLocaleString()}</small>
+            </button>
+          {/each}
+        </div>
+      {/if}
+    {/if}
+    {#if modalError}<p role="alert">{modalError}</p>{/if}
+    <div class="dialog-actions">
+      <button type="button" disabled={switching} onclick={() => dialog.close()}>キャンセル</button>
+      {#if modal === "new"}<button type="button" disabled={switching} onclick={() => void switchTo()}>新規セッションを開く</button>{/if}
+    </div>
+  </dialog>
   {#if store.closed}<div class="banner" role="status">このインスタンスは終了しました。
     {#if successor}<a href={`#/s/${encodeURIComponent(successor.instanceId)}`}>同じホストの新しいセッションへ</a>{/if}
   </div>{/if}

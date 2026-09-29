@@ -16,7 +16,7 @@ describe("host.listModels", () => {
       modelRegistry: { getAvailable: () => models },
       scopedModels: scopedModels.map(model => ({ model })),
     } as unknown as ExtensionContext;
-    return controls({} as ExtensionAPI, ctx, () => {})["host.listModels"]!({});
+    return controls({} as ExtensionAPI, ctx, () => {}, () => {})["host.listModels"]!({});
   }
 
   it("marks only the scoped provider and model pair", () => {
@@ -42,7 +42,7 @@ describe("host.completePath", () => {
       await writeFile(join(cwd, "src", "nested", "ignored.ts"), "");
       await writeFile(join(cwd, ".gitignore"), "src/nested/ignored.ts\n");
       await writeFile(join(cwd, ".hidden"), "");
-      const complete = controls({} as ExtensionAPI, { cwd } as ExtensionContext, () => {})["host.completePath"]!;
+      const complete = controls({} as ExtensionAPI, { cwd } as ExtensionContext, () => {}, () => {})["host.completePath"]!;
       expect(await complete({ prefix: "sr" })).toContainEqual({ path: "src/", directory: true });
       expect(await complete({ prefix: "src/fi" })).toContainEqual({ path: "src/file.ts", directory: false });
       expect(await complete({ prefix: "deep" })).toContainEqual({ path: "src/nested/deep.ts", directory: false });
@@ -53,5 +53,20 @@ describe("host.completePath", () => {
       expect(await complete({ prefix: "" })).not.toContainEqual({ path: ".hidden", directory: false });
       expect(await complete({ prefix: ".h" })).toContainEqual({ path: ".hidden", directory: false });
     } finally { await rm(cwd, { recursive: true, force: true }); }
+  });
+});
+
+describe("session controls", () => {
+  it("forwards switch requests without sending a user turn", () => {
+    const called: unknown[][] = [];
+    const notice = () => {};
+    const handlers = controls({ getCommands: () => [
+      { name: "pirc-session-switch", source: "extension" },
+      { name: "example", source: "extension" },
+    ] } as ExtensionAPI, {} as ExtensionContext, notice,
+    (...args) => { called.push(args); });
+    expect(handlers["host.listCommands"]!({})).toEqual([{ name: "example", source: "extension" }]);
+    expect(handlers["host.switchSession"]!({ requestId: "req", path: "/saved.jsonl" })).toEqual({});
+    expect(called).toEqual([["req", "/saved.jsonl", notice]]);
   });
 });

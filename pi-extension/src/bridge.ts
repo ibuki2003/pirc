@@ -21,7 +21,8 @@ export class Bridge {
   private viewers = 0;
   private status: "connecting" | "connected" | "disconnected" = "disconnected";
   readonly instanceId: string;
-  constructor(private pi: ExtensionAPI, private ctx: ExtensionContext, url: string, previous?: { instanceId: string; seq: number }) {
+  constructor(private pi: ExtensionAPI, private ctx: ExtensionContext, url: string,
+    switchSession: Parameters<typeof controls>[3], previous?: { instanceId: string; seq: number }) {
     this.instanceId = previous?.instanceId ?? crypto.randomUUID();
     const push = (op: OpInput) => this.outbox.push(op);
     this.entries = new EntryTracker(ctx, push);
@@ -43,7 +44,7 @@ export class Bridge {
           label: this.ctx.sessionManager.getLabel(entry.id), timestamp: entry.timestamp,
           preview: entry.type === "message" ? JSON.stringify(entry.message).slice(0, 120) : entry.type,
         })),
-        ...controls(pi, ctx, (requestId, message) => this.connection.notify("session.notice", { level: "error", message, requestId })),
+        ...controls(pi, ctx, (requestId, message) => this.connection.notify("session.notice", { level: "error", message, requestId }), switchSession),
         ping: () => ({}),
       },
       notifications: { "host.viewers": ({ count }) => { this.viewers = count; this.footer(); } },

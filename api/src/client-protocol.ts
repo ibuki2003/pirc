@@ -23,6 +23,8 @@ export interface ClientToServer {
     "session.listModels": Forward<"host.listModels">;
     "session.listCommands": Forward<"host.listCommands">;
     "session.completePath": Forward<"host.completePath">;
+    "session.listSessions": Forward<"host.listSessions">;
+    "session.switchSession": { params: { instanceId: string; path?: string }; result: { requestId: string } };
     ping: { params: Record<string, never>; result: Record<string, never> };
   };
   notifications: Record<string, never>;

@@ -14,9 +14,48 @@
     border-bottom: 1px solid #aaa5;
 
     strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    > button:first-of-type { margin-left: auto; }
+    > button { white-space: nowrap; }
   }
 
   @media (prefers-color-scheme: dark) { background: #202937; }
+}
+
+.session-dialog {
+  width: min(90vw, 36rem);
+  max-height: 80dvh;
+  border: 1px solid #8894a9;
+  border-radius: 8px;
+  padding: 1rem;
+  background: #fff;
+  color: #1c2533;
+  box-shadow: 0 8px 32px #0004;
+
+  &::backdrop { background: #0008; }
+  @media (prefers-color-scheme: dark) { background: #202937; color: #edf0f7; }
+
+  h2 { margin-top: 0; }
+  .saved-sessions {
+    max-height: 50dvh;
+    overflow-y: auto;
+    margin: 1rem 0;
+    button {
+      display: flex;
+      flex-direction: column;
+      gap: .25rem;
+      width: 100%;
+      padding: .65rem;
+      text-align: left;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      &:hover, &:focus-visible { background: #8894a944; }
+      small { color: #667085; overflow-wrap: anywhere; }
+      @media (prefers-color-scheme: dark) { small { color: #aab5c5; } }
+    }
+  }
+  .dialog-actions { display: flex; justify-content: flex-end; gap: .65rem; margin-top: 1rem; }
 }
 
 .status-bar {

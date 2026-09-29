@@ -1,4 +1,4 @@
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { SessionManager, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { execFile } from "node:child_process";
 import { stat } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -10,7 +10,16 @@ import { modelRef } from "./state-tracker.ts";
 
 const execFileAsync = promisify(execFile);
 
-export function controls(pi: ExtensionAPI, ctx: ExtensionContext, notice: (requestId: string, message: string) => void): NonNullable<Handlers<ServerToHost>["requests"]> {
+export async function savedSessions(ctx: ExtensionContext) {
+  const all = await SessionManager.listAll();
+  const local = await SessionManager.list(ctx.cwd, ctx.sessionManager.getSessionDir());
+  return [...new Map([...all, ...local].map(info => [info.path, info])).values()]
+    .sort((a, b) => b.modified.getTime() - a.modified.getTime());
+}
+
+export function controls(pi: ExtensionAPI, ctx: ExtensionContext, notice: (requestId: string, message: string) => void,
+  switchSession: (requestId: string, path: string | undefined, notice: (requestId: string, message: string) => void) => void
+): NonNullable<Handlers<ServerToHost>["requests"]> {
   return {
     "host.prompt": ({ requestId, text, images, deliverAs }) => {
       try {
@@ -37,7 +46,15 @@ export function controls(pi: ExtensionAPI, ctx: ExtensionContext, notice: (reque
         scoped: scoped.has(`${model.provider}\0${model.id}`),
       }));
     },
-    "host.listCommands": () => pi.getCommands().map(({ name, description, source }) => ({ name, description, source })),
+    "host.listCommands": () => pi.getCommands().filter(({ name }) => name !== "pirc-session-switch")
+      .map(({ name, description, source }) => ({ name, description, source })),
+    "host.listSessions": async () => (await savedSessions(ctx)).map(({ path, id, cwd, name, modified, firstMessage }) => ({
+      path, id, cwd, name, modified: modified.toISOString(), firstMessage: firstMessage.slice(0, 160),
+    })),
+    "host.switchSession": ({ requestId, path }) => {
+      switchSession(requestId, path, notice);
+      return {};
+    },
     "host.completePath": async ({ prefix }) => {
       if (prefix.length > 1024 || /\s/.test(prefix)) return [];
       const globAt = prefix.search(/[*?[\]]/);
