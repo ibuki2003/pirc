@@ -10,7 +10,7 @@ pirc は、**起動中の pi TUI セッション**を別端末のブラウザか
 
 | 場所 | 役割 |
 |---|---|
-| `docs/design.md` | プロトコル、同期モデル、画面、スコープの設計書。仕様判断の出発点 |
+| `docs/design.md` | 目的、責任分界、同期の不変条件、アクセス制御の設計判断 |
 | `api/` | 3 者で共有する TypeScript のプロトコル型、RPC、HTTP/WS クライアント。ビルドせずソースを直接参照 |
 | `pi-extension/` | 起動中の pi セッションを観測し、server に同期操作を送り、ブラウザからの操作を pi API に渡す |
 | `server/` | Deno の HTTP/WS 中継。接続中セッションの登録、購読、射影、frontend の静的配信 |
@@ -18,7 +18,7 @@ pirc は、**起動中の pi TUI セッション**を別端末のブラウザか
 | `integration/` | 実際の pi TUI と mock OpenAI-compatible API を使う再利用可能な結合検証 |
 | `README.md` | インストールと起動の入口 |
 
-`api/`、`frontend/`、`pi-extension/` は pnpm workspace。`server/` は独立した Deno プロジェクト。型の共有方法やセッション同期の詳細は設計書を参照する。
+`api/`、`frontend/`、`pi-extension/` は pnpm workspace。`server/` は独立した Deno プロジェクト。設計判断は `docs/design.md`、型と実装の詳細は各ディレクトリのコードを参照する。
 
 ## 変更時の確認先
 
