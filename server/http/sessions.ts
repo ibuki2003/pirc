@@ -27,13 +27,7 @@ function stream(query: URLSearchParams): StreamOptions {
     throw new Error("Invalid profile");
   }
   const base = profile === "full" ? FULL_STREAM : MOBILE_STREAM;
-  const thinking = query.get("thinking");
-  if (thinking !== null && thinking !== "true" && thinking !== "false") {
-    throw new Error("Invalid thinking");
-  }
   const options = {
-    thinking: thinking === null ? base.thinking : thinking === "true",
-    maxTextBytes: integer(query.get("maxTextBytes"), base.maxTextBytes),
     toolOutputBytes: integer(
       query.get("toolOutputBytes"),
       base.toolOutputBytes,

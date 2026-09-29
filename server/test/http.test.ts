@@ -59,12 +59,19 @@ Deno.test("HTTP sync forwards cursor and projects with query stream", async () =
   });
   const response = await handle(
     new Request(
-      "http://localhost:8787/api/sessions/i/sync?since=0&branchLimit=7&maxTextBytes=2",
+      "http://localhost:8787/api/sessions/i/sync?since=0&branchLimit=7",
     ),
   );
   assertEquals(response.status, 200);
   assertEquals(params, { since: 0, branchLimit: 7 });
   const body = await response.json();
-  assertEquals(body.entries[0].entry.message.content[0].text, "lo");
+  assertEquals(body.entries[0].entry, {
+    type: "redacted", redacted: true, id: "e", parentId: null, timestamp: "",
+    originalBytes: new TextEncoder().encode(JSON.stringify({
+      type: "message", id: "e", parentId: null, timestamp: "",
+      message: { role: "toolResult", content: [{ type: "text", text: "long" }] },
+    })).length,
+    role: "toolResult",
+  });
   registry.unregister(host, "quit");
 });

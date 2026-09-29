@@ -1,266 +1,189 @@
 import {
-  FULL_STREAM,
   type LiveBlock,
+  type ProjectedAssistantEntry,
   type ProjectedEntry,
+  type RedactedEntry,
+  type RedactedToolCall,
   type SessionSnapshot,
   type StreamOptions,
   type SyncOp,
   type ToolProgress,
-  type Trim,
 } from "@pirc/api";
 
 const encoder = new TextEncoder();
-const size = (text: string) => encoder.encode(text).length;
-function cut(text: string, limit: number, tail = false): string {
+const decoder = new TextDecoder();
+const BASH_COMMAND_BYTES = 128;
+
+function head(text: string, limit: number): string {
   const bytes = encoder.encode(text);
   if (bytes.length <= limit) return text;
-  const part = tail
-    ? bytes.subarray(bytes.length - limit)
-    : bytes.subarray(0, limit);
-  return new TextDecoder("utf-8", { fatal: false }).decode(part).replace(
-    /^\uFFFD|\uFFFD$/g,
-    "",
-  );
+  return decoder.decode(bytes.subarray(0, limit)).replace(/\uFFFD$/, "");
 }
-function projectValue(
-  value: unknown,
-  options: StreamOptions,
-  trims: Trim[],
-  path: (string | number)[],
-  mode: "text" | "json" | "thinking" | "tail",
-): unknown {
-  if (typeof value === "string") {
-    const limit = mode === "thinking" && !options.thinking
-      ? 0
-      : options.maxTextBytes;
-    if (size(value) <= limit) return value;
-    trims.push({
-      path,
-      kind: mode === "json" ? "json" : "text",
-      originalBytes: size(value),
-    });
-    return cut(value, limit, mode === "tail");
-  }
-  if (Array.isArray(value)) {
-    return value.map((item, i) =>
-      projectValue(item, options, trims, [...path, i], mode)
-    );
-  }
-  if (value && typeof value === "object") {
-    const result: Record<string, unknown> = {};
-    for (const [key, item] of Object.entries(value)) {
-      result[key] = projectValue(item, options, trims, [...path, key], mode);
-    }
-    return result;
-  }
-  return value;
+
+function tail(text: string, limit: number): string {
+  const bytes = encoder.encode(text);
+  if (bytes.length <= limit) return text;
+  return decoder.decode(bytes.subarray(bytes.length - limit)).replace(/^\uFFFD/, "");
 }
-function projectContent(
-  content: unknown,
-  options: StreamOptions,
-  trims: Trim[],
-  path: (string | number)[],
-  trimText = false,
-): unknown {
-  if (!Array.isArray(content)) return content;
-  return content.map((block, i) => {
-    if (!block || typeof block !== "object") return block;
-    const b = block as Record<string, unknown>;
-    const p = [...path, i];
-    if (b.type === "image" && typeof b.data === "string") {
-      trims.push({
-        path: [...p, "data"],
-        kind: "image",
-        originalBytes: Math.floor(b.data.length * 3 / 4),
-        mimeType: String(b.mimeType),
-      });
-      return { ...b, data: "" };
-    }
-    if (b.type === "thinking") {
-      return {
-        ...b,
-        thinking: projectValue(
-          b.thinking,
-          options,
-          trims,
-          [...p, "thinking"],
-          "thinking",
-        ),
-      };
-    }
-    if (b.type === "text") {
-      return trimText
-        ? {
-          ...b,
-          text: projectValue(b.text, options, trims, [...p, "text"], "text"),
-        }
-        : b;
-    }
-    if (b.type === "toolCall") {
-      return {
-        ...b,
-        arguments: projectValue(b.arguments, options, trims, [
-          ...p,
-          "arguments",
-        ], "json"),
-      };
-    }
-    return b;
-  });
+
+function lineCount(text: string): number {
+  return text ? text.split(/\r?\n/).length - Number(text.endsWith("\n")) : 0;
 }
-export function projectEntry(
-  item: ProjectedEntry,
-  options: StreamOptions,
-): ProjectedEntry {
+
+function patchChanges(patch: string): NonNullable<RedactedToolCall["changes"]> {
+  const files: NonNullable<RedactedToolCall["changes"]> = [];
+  let section: "Update" | "Add" | "Delete" | undefined;
+  for (const line of patch.split(/\r?\n/)) {
+    const marker = /^\*\*\* (Update|Add|Delete) File: (.+)$/.exec(line);
+    if (marker) {
+      section = marker[1] as typeof section;
+      files.push(section === "Delete" ? { path: marker[2] }
+        : section === "Add" ? { path: marker[2], added: 0 }
+        : { path: marker[2], added: 0, removed: 0 });
+      continue;
+    }
+    if (line === "*** End of File" || line === "*** End Patch") { section = undefined; continue; }
+    const file = files.at(-1);
+    if (!file || section === "Delete" || !section) continue;
+    if (line.startsWith("+")) file.added!++;
+    else if (line.startsWith("-")) file.removed = (file.removed ?? 0) + 1;
+  }
+  return files;
+}
+
+function redactedCall(block: { id: string; name: string; arguments?: Record<string, unknown> }): RedactedToolCall {
+  const name = block.name;
+  const args = block.arguments;
+  const base = { type: "toolCall" as const, id: block.id, name, redacted: true as const, originalBytes: encoder.encode(JSON.stringify(block)).length };
+  if (name === "read") return { ...base, arguments: args };
+  if (name === "bash") {
+    return {
+      ...base,
+      arguments: { command: head(String(args?.command ?? ""), BASH_COMMAND_BYTES) },
+    };
+  }
+  if (name === "edit" || name === "write") {
+    const path = String(args?.path ?? "");
+    return {
+      ...base,
+      arguments: { path },
+      changes: [{
+        path,
+        added: lineCount(String(name === "edit" ? args?.newText ?? "" : args?.content ?? "")),
+        ...(name === "edit" ? { removed: lineCount(String(args?.oldText ?? "")) } : {}),
+      }],
+    };
+  }
+  if (name === "apply_patch") return { ...base, changes: patchChanges(String(args?.patch ?? "")) };
+  return base;
+}
+
+export function projectEntry(item: ProjectedEntry, _options: StreamOptions): ProjectedEntry {
   const entry = item.entry;
-  const trims: Trim[] = [];
-  const data = { ...entry } as Record<string, unknown>;
-  if (entry.type === "message") {
-    const message = { ...entry.message } as Record<string, unknown>;
-    const role = message.role;
-    if (role === "toolResult") {
-      message.content = projectContent(message.content, options, trims, [
-        "message",
-        "content",
-      ], true);
-    } else if (role === "assistant" || role === "user") {
-      message.content = projectContent(message.content, options, trims, [
-        "message",
-        "content",
-      ]);
-    } else if (role === "bashExecution") {
-      message.output = projectValue(message.output, options, trims, [
-        "message",
-        "output",
-      ], "tail");
-    } else {message.content = projectContent(message.content, options, trims, [
-        "message",
-        "content",
-      ]);}
-    data.message = message;
-  } else if (entry.type === "custom_message") {
-    data.content = typeof entry.content === "string"
-      ? projectValue(entry.content, options, trims, ["content"], "text")
-      : projectContent(entry.content, options, trims, ["content"], true);
-    data.details = projectValue(
-      entry.details,
-      options,
-      trims,
-      ["details"],
-      "json",
-    );
-  } else if (entry.type === "custom") {
-    data.data = projectValue(entry.data, options, trims, ["data"], "json");
+  if (entry.type !== "message") return item;
+  const message = entry.message;
+  if (message.role === "toolResult") {
+    const redacted: RedactedEntry = {
+      type: "redacted",
+      redacted: true,
+      originalBytes: encoder.encode(JSON.stringify(entry)).length,
+      id: entry.id,
+      parentId: entry.parentId,
+      timestamp: entry.timestamp,
+      role: "toolResult",
+      toolCallId: message.toolCallId,
+      toolName: message.toolName,
+      ...(["bash", "edit", "write"].includes(message.toolName) ? { isError: message.isError } : {}),
+    };
+    return { index: item.index, entry: redacted };
   }
+  if (message.role === "bashExecution") {
+    return {
+      index: item.index,
+      entry: {
+        type: "redacted",
+        redacted: true,
+        originalBytes: encoder.encode(JSON.stringify(entry)).length,
+        id: entry.id,
+        parentId: entry.parentId,
+        timestamp: entry.timestamp,
+        role: "bashExecution",
+        command: head(message.command, BASH_COMMAND_BYTES),
+        isError: message.cancelled || (message.exitCode !== undefined && message.exitCode !== 0),
+      },
+    };
+  }
+  if (message.role !== "assistant") return item;
   return {
     index: item.index,
-    entry: data as unknown as typeof entry,
-    ...(trims.length ? { trims } : {}),
+    entry: {
+      ...entry,
+      message: {
+        ...message,
+        content: message.content.map((block) =>
+          block.type === "toolCall"
+            ? redactedCall(block)
+            : block
+        ),
+      },
+    } as ProjectedAssistantEntry,
   };
 }
-export function projectTool(
-  value: ToolProgress,
-  options: StreamOptions,
-): ToolProgress {
-  return { ...value, output: cut(value.output, options.toolOutputBytes, true) };
+
+export function projectTool(value: ToolProgress, options: StreamOptions): ToolProgress {
+  return { ...value, output: tail(value.output, options.toolOutputBytes) };
 }
-function projectLiveBlock(value: LiveBlock, options: StreamOptions): LiveBlock {
-  if (value.type === "thinking") {
-    const trims: Trim[] = [];
-    const thinking = projectValue(
-      value.thinking,
-      options,
-      trims,
-      ["thinking"],
-      "thinking",
-    ) as string;
-    return { ...value, thinking, ...(trims.length ? { trims } : {}) };
-  }
-  if (value.type === "toolCall" && value.arguments) {
-    const trims: Trim[] = [];
-    const args = projectValue(
-      value.arguments,
-      options,
-      trims,
-      ["arguments"],
-      "json",
-    ) as Record<string, unknown>;
-    return { ...value, arguments: args, ...(trims.length ? { trims } : {}) };
-  }
-  return value;
+
+function projectLiveBlock(value: LiveBlock): LiveBlock {
+  return value.type === "toolCall"
+    ? redactedCall(value) as LiveBlock
+    : value;
 }
-export function projectOp(op: SyncOp, options: StreamOptions): SyncOp | null {
+
+export function projectOp(op: SyncOp, options: StreamOptions): SyncOp {
   if (op.op === "append" && op.target === "entries") {
-    return {
-      ...op,
-      items: op.items.map((item) => projectEntry(item, options)),
-    };
+    return { ...op, items: op.items.map((item) => projectEntry(item, options)) };
   }
   if (op.op === "set" && op.target === "live") {
     return {
       ...op,
       value: op.value && {
         ...op.value,
-        content: op.value.content.map((b) => projectLiveBlock(b, options)),
+        content: op.value.content.map(projectLiveBlock),
       },
     };
   }
   if (op.op === "set" && op.target === "live.content") {
-    if (!options.thinking && op.value.type === "thinking") return null;
-    return { ...op, value: projectLiveBlock(op.value, options) };
+    return { ...op, value: projectLiveBlock(op.value) };
   }
   if (op.op === "set" && op.target === "tool") {
     return { ...op, value: op.value && projectTool(op.value, options) };
   }
   return op;
 }
-export function projectOps(
-  ops: SyncOp[],
-  options: StreamOptions,
-  types: string[] = [],
-): SyncOp[] {
-  // Track block types within the batch, including a freshly started live message.
-  return ops.flatMap((op) => {
-    if (op.op === "set" && op.target === "live") {
-      types = op.value?.content.map((b) => b.type) ?? [];
-    }
-    if (op.op === "set" && op.target === "live.content") {
-      types[op.index] = op.value.type;
-    }
-    if (
-      op.op === "append" && op.target === "live.content" && !options.thinking &&
-      types[op.index] === "thinking"
-    ) return [];
-    const result = projectOp(op, options);
-    return result ? [result] : [];
-  });
+
+export function projectOps(ops: SyncOp[], options: StreamOptions): SyncOp[] {
+  return ops.map((op) => projectOp(op, options));
 }
-export function projectSnapshot(
-  snapshot: SessionSnapshot,
-  options: StreamOptions,
-): SessionSnapshot {
+
+export function projectSnapshot(snapshot: SessionSnapshot, options: StreamOptions): SessionSnapshot {
   return {
     ...snapshot,
     entries: snapshot.entries.map((item) => projectEntry(item, options)),
-    live: snapshot.live &&
-      {
-        ...snapshot.live,
-        content: snapshot.live.content.map((b) => projectLiveBlock(b, options)),
-      },
+    live: snapshot.live && {
+      ...snapshot.live,
+      content: snapshot.live.content.map(projectLiveBlock),
+    },
     tools: Object.fromEntries(
-      Object.entries(snapshot.tools).map((
-        [id, tool],
-      ) => [id, projectTool(tool, options)]),
+      Object.entries(snapshot.tools).map(([id, tool]) => [id, projectTool(tool, options)]),
     ),
   };
 }
+
 export function streamKey(options: StreamOptions): string {
   return JSON.stringify(options);
 }
+
 export function validStream(value: StreamOptions): boolean {
-  return typeof value?.thinking === "boolean" &&
-    [value.maxTextBytes, value.toolOutputBytes].every((n) =>
-      Number.isSafeInteger(n) && n >= 0
-    );
+  return Number.isSafeInteger(value?.toolOutputBytes) && value.toolOutputBytes >= 0;
 }
-export { FULL_STREAM };

@@ -1,52 +1,69 @@
 <script lang="ts">
-  import type { ProjectedEntry, Trim } from "@pirc/api";
+  import type { ProjectedAssistantEntry, ProjectedEntry } from "@pirc/api";
   import { markdown } from "../../lib/markdown.ts";
   import BlobImage from "./BlobImage.svelte";
-  import TrimmedContent from "./TrimmedContent.svelte";
+  import ToolCallView from "./ToolCallView.svelte";
+  type Call = Extract<ProjectedAssistantEntry["message"]["content"][number], { type: "toolCall" }>;
   let { item, results, instanceId, expand }: {
     item: ProjectedEntry; results: ProjectedEntry[]; instanceId: string; expand: (id: string) => Promise<void>
   } = $props();
   let entry = $derived(item.entry);
-  let trims = $derived(item.trims || []);
-  const findTrim = (path: (string | number)[]): Trim | undefined =>
-    trims.find(t => JSON.stringify(t.path) === JSON.stringify(path));
+  let error = $state("");
+  let bashOpen = $state(false);
+  async function load(id: string) {
+    try { await expand(id); } catch (e) { error = String(e); }
+  }
+  function size(bytes: number): string {
+    return bytes >= 1024 ? `${Math.round(bytes / 1024)}K` : `${bytes}B`;
+  }
+  function readAt(content: unknown, index: number): boolean {
+    return Array.isArray(content) && content[index]?.type === "toolCall" && content[index]?.name === "read";
+  }
+  function readCalls(content: unknown, index: number): Call[] {
+    if (!Array.isArray(content)) return [];
+    const calls: Call[] = [];
+    while (readAt(content, index)) calls.push(content[index++] as Call);
+    return calls;
+  }
 </script>
-<article class="entry" class:user={entry.type === "message" && entry.message.role === "user"}>
-  {#if entry.type === "message"}
+<article class="entry"
+  class:assistant={entry.type === "message" && entry.message.role === "assistant"}
+  class:user={entry.type === "message" && entry.message.role === "user"}
+  class:system={entry.type === "message" && entry.message.role === "system"}>
+  {#if entry.type === "redacted"}
+    {#if entry.role === "bashExecution"}
+      <details class="tool" class:tool-error={entry.isError} open={bashOpen} ontoggle={e => {
+        bashOpen = e.currentTarget.open;
+        if (bashOpen) void load(entry.id);
+      }}>
+        <summary><span class="tool-preview">{entry.command}</span><span class="tool-size">({size(entry.originalBytes)})</span></summary>
+        <pre>{entry.command}</pre>
+      </details>
+    {/if}
+  {:else if entry.type === "message"}
     {#if entry.message.role === "toolResult"}
       <!-- Tool results are displayed with their matching tool call. -->
     {:else}
       <header>{entry.message.role === "assistant" ? "assistant" : entry.message.role === "user" ? "you" : entry.message.role}</header>
       {#if entry.message.role === "bashExecution"}
-        <pre>{entry.message.command}
+        <details class="tool" class:tool-error={entry.message.cancelled || (entry.message.exitCode !== undefined && entry.message.exitCode !== 0)} open={bashOpen} ontoggle={e => { bashOpen = e.currentTarget.open; }}>
+          <summary><span class="tool-preview">{entry.message.command}</span></summary>
+          <pre>{entry.message.command}
 {entry.message.output}</pre>
+        </details>
       {:else if "content" in entry.message}
         {#each typeof entry.message.content === "string" ? [{ type: "text" as const, text: entry.message.content }] : entry.message.content as block, index}
-          {@const path = ["message", "content", index, block.type === "thinking" ? "thinking" : block.type === "toolCall" ? "arguments" : block.type === "image" ? "data" : "text"]}
           {#if block.type === "text"}
             <div class="markdown">{@html markdown(block.text)}</div>
           {:else if block.type === "thinking"}
-            <details><summary>思考</summary><div class="markdown">{@html markdown(block.thinking)}</div></details>
+            <small class="muted-meta thinking-content markdown">{@html markdown(block.thinking)}</small>
           {:else if block.type === "image"}
             <BlobImage {instanceId} entryId={entry.id} path={["message", "content", index, "data"]} />
           {:else if block.type === "toolCall"}
-            <details class="tool"><summary>🔧 {block.name}</summary>
-              <pre>{JSON.stringify(block.arguments, null, 2)}</pre>
-              {#each results.filter(r => r.entry.type === "message" && r.entry.message.role === "toolResult" && r.entry.message.toolCallId === block.id) as result (result.entry.id)}
-                {#if result.entry.type === "message" && result.entry.message.role === "toolResult"}
-                  {#each result.entry.message.content as output, j}
-                    {#if output.type === "text"}<pre>{output.text}</pre>
-                    {:else if output.type === "image"}<BlobImage {instanceId} entryId={result.entry.id} path={["message", "content", j, "data"]} />{/if}
-                  {/each}
-                  {#each result.trims || [] as trim}
-                    {#if trim.kind !== "image"}<TrimmedContent bytes={trim.originalBytes} onexpand={() => expand(result.entry.id)} />{/if}
-                  {/each}
-                {/if}
-              {/each}
-            </details>
-          {/if}
-          {#if findTrim(path) && block.type !== "image"}
-            <TrimmedContent bytes={findTrim(path)!.originalBytes} onexpand={() => expand(entry.id)} />
+            {#if block.name !== "read" || !readAt(entry.message.content, index - 1)}
+              <ToolCallView calls={block.name === "read" ? readCalls(entry.message.content, index) : [block]}
+                {results} {instanceId} entryId={entry.id} {expand} />
+            {/if}
           {/if}
         {/each}
       {/if}
@@ -66,4 +83,5 @@
   {:else if entry.type === "label"}
     <small>ラベル: {entry.label || "削除"}</small>
   {/if}
+  {#if error}<small role="alert">{error}</small>{/if}
 </article>

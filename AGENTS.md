@@ -26,3 +26,10 @@ pirc は、**起動中の pi TUI セッション**を別端末のブラウザか
 - server のチェック・テストは `cd server && deno task check && deno task test`。
 - workspace のチェック・テストはルートの `pnpm check` / `pnpm test`。実 TUI を含む結合確認は `node integration/tui-check.mjs`。
 - 開発・ビルド・extension の導入コマンドは `README.md` を参照する。
+
+## UI の方針
+
+- 基本は SMUI のコンポーネントを使う。
+- 画面には要件を満たすなかで情報量を適度に増やし、操作手数を減らす。情報を与えない UI 部品は可能な限りシンプルにする。API 操作と一対一対応した UI 部品・ボタンは作らない。
+- UI 部品に絵文字を使わない。
+- 今後 UI 方針への指摘を受けたら、この節に追記して将来の変更に活かす。

@@ -46,8 +46,9 @@ export interface LiveMessage {
 }
 export type LiveBlock =
   | { type: "text"; text: string }
-  | { type: "thinking"; thinking: string; trims?: import("./projection.ts").Trim[] }
-  | { type: "toolCall"; id: string; name: string; arguments?: Record<string, unknown>; trims?: import("./projection.ts").Trim[] };
+  | { type: "thinking"; thinking: string }
+  | { type: "toolCall"; id: string; name: string; arguments?: Record<string, unknown>;
+      changes?: import("./projection.ts").RedactedToolCall["changes"] };
 export interface ToolProgress {
   toolName: string;
   startedAt: number;

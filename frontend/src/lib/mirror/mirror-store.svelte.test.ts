@@ -56,7 +56,7 @@ describe("MirrorStore", () => {
     await vi.waitFor(() => expect(store.mirror?.seq).toBe(0));
 
     getSync.mockClear().mockRejectedValue(new Error("HTTP 504"));
-    await store.setStream({ thinking: true, maxTextBytes: 2048, toolOutputBytes: 2048 });
+    await store.setStream({ toolOutputBytes: 4096 });
     await vi.waitFor(() => expect(store.error).toContain("HTTP 504"));
     await tick();
     expect(getSync).toHaveBeenCalledTimes(2);

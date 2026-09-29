@@ -15,7 +15,6 @@ export class Registry {
   private subscribers = new Set<ClientConnection>();
   private viewers = new Map<string, Set<ClientConnection>>();
   private offline = new Set<string>();
-  private liveTypes = new Map<string, string[]>();
   private changedTimer?: ReturnType<typeof setTimeout>;
   list(): SessionSummary[] {
     return [...this.hosts.values()].map((h) => h.summary);
@@ -59,7 +58,6 @@ export class Registry {
       return;
     }
     this.offline.delete(id);
-    this.liveTypes.delete(id);
     for (const client of this.viewers.get(id) ?? []) {
       if (reason) client.closed(id, reason, host.summary.hostId);
       client.forget(id);
@@ -98,27 +96,16 @@ export class Registry {
   }
   fanout(id: string, ops: SyncOp[]): void {
     const projected = new Map<string, SyncOp[]>();
-    const types = this.liveTypes.get(id) ?? [];
     for (const client of this.viewers.get(id) ?? []) {
       if (client.paused(id)) continue;
       const stream = client.streams.get(id);
       if (!stream) continue;
       const key = streamKey(stream);
       if (!projected.has(key)) {
-        projected.set(key, projectOps(ops, stream, [...types]));
+        projected.set(key, projectOps(ops, stream));
       }
       client.ops(id, projected.get(key)!);
     }
-    for (const op of ops) {
-      if (op.op === "set" && op.target === "live") {
-        types.length = 0;
-        types.push(...op.value?.content.map((b) => b.type) ?? []);
-      }
-      if (op.op === "set" && op.target === "live.content") {
-        types[op.index] = op.value.type;
-      }
-    }
-    this.liveTypes.set(id, types);
   }
   notice(id: string, notice: Notice): void {
     for (const client of this.viewers.get(id) ?? []) client.notice(id, notice);
