@@ -23,7 +23,13 @@ export function controls(pi: ExtensionAPI, ctx: ExtensionContext, notice: (reque
       return {};
     },
     "host.setName": ({ name }) => { pi.setSessionName(name); return {}; },
-    "host.listModels": () => ctx.modelRegistry.getAvailable().map(modelRef),
+    "host.listModels": () => {
+      const scoped = new Set(ctx.scopedModels.map(({ model }) => `${model.provider}\0${model.id}`));
+      return ctx.modelRegistry.getAvailable().map(model => ({
+        ...modelRef(model),
+        scoped: scoped.has(`${model.provider}\0${model.id}`),
+      }));
+    },
     "host.listCommands": () => pi.getCommands().map(({ name, description, source }) => ({ name, description, source })),
   };
 }

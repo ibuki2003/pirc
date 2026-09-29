@@ -2,3 +2,9 @@
 @use "@smui/button/style";
 @use "@smui/card/style" as card;
 @use "@smui/icon-button/style" as icon-button;
+@use "@smui/textfield/style" as textfield;
+@use "@smui/textfield/styles/index" as textfield-styles;
+
+.picker .mdc-text-field--outlined {
+  @include textfield-styles.outlined-density(-3);
+}

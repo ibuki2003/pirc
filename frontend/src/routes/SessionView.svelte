@@ -25,8 +25,11 @@
   </div>{/if}
   {#if store.error}<p role="alert">{store.error}</p>{/if}
   {#if store.mirror}
-    <StatusBar state={store.mirror.state} />
-    <div class="pickers"><ModelPicker {instanceId} /><ThinkingPicker {instanceId} sessionState={store.mirror.state} /></div>
+    <div class="status-bar">
+      <ModelPicker {instanceId} sessionState={store.mirror.state} />
+      <ThinkingPicker {instanceId} sessionState={store.mirror.state} />
+      <StatusBar state={store.mirror.state} />
+    </div>
     <div class="scroll">
       <Transcript entries={store.branch} {instanceId} expand={id => store.expandEntry(id)}
         loadMore={() => store.loadAncestors()} hasMore={store.mirror.hasMoreBefore} />

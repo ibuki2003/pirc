@@ -29,7 +29,7 @@ export interface ServerToHost {
     "host.setThinkingLevel": { params: { level: ThinkingLevel }; result: Record<string, never> };
     "host.compact": { params: { requestId: string; instructions?: string }; result: Record<string, never> };
     "host.setName": { params: { name: string }; result: Record<string, never> };
-    "host.listModels": { params: Record<string, never>; result: ModelRef[] };
+    "host.listModels": { params: Record<string, never>; result: (ModelRef & { scoped: boolean })[] };
     "host.listCommands": { params: Record<string, never>; result: { name: string; description?: string; source: string }[] };
     ping: { params: Record<string, never>; result: Record<string, never> };
   };

@@ -34,8 +34,17 @@ importers:
       '@smui/common':
         specifier: ^9.0.0
         version: 9.0.2
+      '@smui/floating-label':
+        specifier: ^9.0.2
+        version: 9.0.2
       '@smui/icon-button':
         specifier: ^9.0.0
+        version: 9.0.2
+      '@smui/line-ripple':
+        specifier: ^9.0.2
+        version: 9.0.2
+      '@smui/notched-outline':
+        specifier: ^9.0.2
         version: 9.0.2
       '@smui/ripple':
         specifier: ^9.0.0
