@@ -1,0 +1,10 @@
+{
+  "name": "pirc",
+  "private": true,
+  "scripts": {
+    "dev": "deno task --config server/deno.json dev & pnpm -F frontend dev",
+    "check": "pnpm -r check && deno task --config server/deno.json check",
+    "test": "pnpm -r test && deno task --config server/deno.json test"
+  },
+  "packageManager": "pnpm@11.22.0"
+}

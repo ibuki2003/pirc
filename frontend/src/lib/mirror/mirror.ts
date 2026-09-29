@@ -1,0 +1,87 @@
+import type { ProjectedEntry, SessionSnapshot, SessionState, LiveMessage, ToolProgress, SyncOp } from "@pirc/api";
+
+export interface SessionMirror {
+  state: SessionState;
+  entries: Map<number, ProjectedEntry>;
+  entryIds: Map<string, number>;
+  entryCount: number;
+  leafId: string | null;
+  live: LiveMessage | null;
+  tools: Map<string, ToolProgress>;
+  seq: number;
+  hasMoreBefore: boolean;
+}
+export class SyncMismatch extends Error {}
+export function mergeEntries(mirror: SessionMirror, entries: ProjectedEntry[]): void {
+  for (const item of entries) {
+    mirror.entries.set(item.index, item);
+    mirror.entryIds.set(item.entry.id, item.index);
+  }
+}
+export function applySnapshot(previous: SessionMirror | null, snapshot: SessionSnapshot): SessionMirror {
+  const mirror: SessionMirror = {
+    state: snapshot.state,
+    entries: snapshot.mode === "delta" && previous ? new Map(previous.entries) : new Map(),
+    entryIds: snapshot.mode === "delta" && previous ? new Map(previous.entryIds) : new Map(),
+    entryCount: snapshot.entryCount,
+    leafId: snapshot.leafId,
+    live: snapshot.live,
+    tools: new Map(Object.entries(snapshot.tools)),
+    seq: snapshot.seq,
+    hasMoreBefore: snapshot.mode === "delta" && previous ? previous.hasMoreBefore : snapshot.hasMoreBefore,
+  };
+  mergeEntries(mirror, snapshot.entries);
+  return mirror;
+}
+export function applyOps(mirror: SessionMirror, ops: SyncOp[]): SessionMirror {
+  // Work on a copy: an invalid batch must never leave a half-applied mirror.
+  const next: SessionMirror = {
+    ...mirror, entries: new Map(mirror.entries), entryIds: new Map(mirror.entryIds),
+    tools: new Map(mirror.tools), live: mirror.live ? { ...mirror.live, content: [...mirror.live.content] } : null,
+  };
+  for (const op of ops) {
+    if (op.seq <= next.seq) continue;
+    if (op.seq !== next.seq + 1 || op.op === "reset") throw new SyncMismatch("Sequence gap or reset");
+    if (op.op === "append" && op.target === "entries") {
+      if (op.from !== next.entryCount) throw new SyncMismatch("Entry cursor mismatch");
+      mergeEntries(next, op.items);
+      next.entryCount += op.items.length;
+      if (op.items.length) next.leafId = op.items.at(-1)!.entry.id;
+    } else if (op.op === "set" && op.target === "leaf") next.leafId = op.value;
+    else if (op.op === "set" && op.target === "state") next.state = op.value;
+    else if (op.op === "set" && op.target === "live") next.live = op.value;
+    else if (op.op === "set" && op.target === "live.content") {
+      if (!next.live || op.index > next.live.content.length) throw new SyncMismatch("Missing live block");
+      next.live.content[op.index] = op.value;
+    } else if (op.op === "append" && op.target === "live.content") {
+      const block = next.live?.content[op.index];
+      if (!block || block.type === "toolCall") throw new SyncMismatch("Missing text block");
+      next.live!.content[op.index] = block.type === "text"
+        ? { ...block, text: block.text + op.text }
+        : { ...block, thinking: block.thinking + op.text };
+    } else if (op.op === "set" && op.target === "tool") {
+      if (op.value) next.tools.set(op.key, op.value);
+      else next.tools.delete(op.key);
+    }
+    next.seq = op.seq;
+  }
+  return next;
+}
+export function computeBranch(mirror: SessionMirror): ProjectedEntry[] {
+  const branch: ProjectedEntry[] = [];
+  const visited = new Set<string>();
+  let id = mirror.leafId;
+  while (id && !visited.has(id)) {
+    visited.add(id);
+    const index = mirror.entryIds.get(id);
+    const item = index === undefined ? undefined : mirror.entries.get(index);
+    if (!item) break;
+    branch.push(item);
+    id = item.entry.parentId;
+  }
+  return branch.reverse();
+}
+export function missingAncestor(mirror: SessionMirror): string | null {
+  const first = computeBranch(mirror)[0];
+  return first ? first.entry.parentId : mirror.leafId;
+}

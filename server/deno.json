@@ -1,0 +1,18 @@
+{
+  "imports": {
+    "@pirc/api": "../api/src/index.ts",
+    "@earendil-works/pi-coding-agent": "npm:@earendil-works/pi-coding-agent@0.87.1",
+    "@std/http": "jsr:@std/http@^1.0.0",
+    "@std/assert": "jsr:@std/assert@^1.0.0"
+  },
+  "tasks": {
+    "dev": "deno run --watch --allow-net --allow-read --allow-env main.ts",
+    "start": "deno run --allow-net --allow-read --allow-env main.ts",
+    "check": "deno check main.ts test/*.ts",
+    "test": "deno test --allow-env test/"
+  },
+  "compilerOptions": {
+    "strict": true,
+    "verbatimModuleSyntax": true
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "@pirc/pi-extension",
+  "private": true,
+  "type": "module",
+  "pi": { "extensions": ["./src/index.ts"] },
+  "scripts": { "check": "tsc --noEmit", "test": "vitest run" },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "0.87.1",
+    "@earendil-works/pi-ai": "0.87.1",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.0"
+  }
+}

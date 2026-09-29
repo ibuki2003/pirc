@@ -1,0 +1,49 @@
+import { describe, expect, it, vi } from "vitest";
+import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { OpInput, SyncOp } from "../../api/src/index.ts";
+import { EntryTracker } from "./entry-tracker.ts";
+import { Outbox } from "./outbox.ts";
+
+describe("Outbox", () => {
+  it("coalesces adjacent live deltas and retains a continuous sequence", () => {
+    vi.useFakeTimers();
+    try {
+      const batches: SyncOp[][] = [];
+      const box = new Outbox(7, () => {}, ops => batches.push(ops));
+      box.push({ op: "set", target: "live.content", index: 0, value: { type: "text", text: "" } });
+      box.push({ op: "append", target: "live.content", index: 0, text: "a" });
+      box.push({ op: "append", target: "live.content", index: 0, text: "b" });
+      vi.advanceTimersByTime(100);
+      expect(batches).toEqual([[{ seq: 8, op: "set", target: "live.content", index: 0, value: { type: "text", text: "ab" } }]]);
+      box.push({ op: "set", target: "leaf", value: "a" });
+      box.flush();
+      expect(box.sequence).toBe(9);
+      expect(batches[1]?.[0]?.seq).toBe(9);
+    } finally { vi.useRealTimers(); }
+  });
+});
+
+describe("EntryTracker", () => {
+  it("sends appended entries and a separately navigated leaf; full snapshots follow the active branch", () => {
+    const entries = [
+      { id: "a", parentId: null, type: "custom", timestamp: "" },
+      { id: "b", parentId: "a", type: "custom", timestamp: "" },
+    ];
+    let leaf = "a";
+    const manager = {
+      getEntries: () => [...entries],
+      getLeafId: () => leaf,
+      getBranch: (id = leaf) => id === "b" ? [...entries] : entries.slice(0, 1),
+    };
+    const ops: OpInput[] = [];
+    const tracker = new EntryTracker({ sessionManager: manager } as unknown as ExtensionContext, op => ops.push(op));
+    leaf = "b";
+    tracker.reconcile();
+    expect(ops).toEqual([{ op: "set", target: "leaf", value: "b" }]);
+    entries.push({ id: "c", parentId: "b", type: "custom", timestamp: "" });
+    leaf = "c";
+    tracker.reconcile();
+    expect(ops[1]).toMatchObject({ op: "append", target: "entries", from: 2, items: [{ index: 2, entry: entries[2] }] });
+    expect(tracker.snapshot(2, 1)).toMatchObject({ mode: "delta", entryCount: 3, entries: [{ index: 2 }] });
+  });
+});
