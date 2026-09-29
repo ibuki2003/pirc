@@ -2,6 +2,8 @@
   border-top: 1px solid #aaa5;
   padding: .5rem;
 
+  .composer-input { position: relative; }
+
   textarea {
     display: block;
     width: 100%;
@@ -12,6 +14,45 @@
     border: 1px solid #8894a9;
     background: transparent;
     color: inherit;
+  }
+
+  .composer-completions {
+    position: absolute;
+    bottom: calc(100% + .25rem);
+    left: 0;
+    z-index: 5;
+    width: max-content;
+    max-width: min(90vw, 32rem);
+    max-height: min(12rem, 50vh);
+    overflow-y: auto;
+    border: 1px solid #8894a9;
+    border-radius: 8px;
+    background: #fff;
+    color: #1c2533;
+    box-shadow: 0 3px 12px #0003;
+
+    @media (prefers-color-scheme: dark) { background: #202937; color: #edf0f7; }
+    @media (max-width: 600px) { width: 100%; max-width: 100%; }
+
+    button {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      width: 100%;
+      padding: .35rem .6rem;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      text-align: left;
+      cursor: pointer;
+      &.highlighted, &:hover { background: #e9edf3; }
+      small { color: #667085; }
+      span, small { overflow-wrap: anywhere; }
+      @media (prefers-color-scheme: dark) {
+        &.highlighted, &:hover { background: #303e52; }
+        small { color: #aab5c5; }
+      }
+    }
   }
 
   .actions {

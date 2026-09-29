@@ -31,6 +31,7 @@ export interface ServerToHost {
     "host.setName": { params: { name: string }; result: Record<string, never> };
     "host.listModels": { params: Record<string, never>; result: (ModelRef & { scoped: boolean })[] };
     "host.listCommands": { params: Record<string, never>; result: { name: string; description?: string; source: string }[] };
+    "host.completePath": { params: { prefix: string }; result: { path: string; directory: boolean }[] };
     ping: { params: Record<string, never>; result: Record<string, never> };
   };
   notifications: { "host.viewers": { count: number } };

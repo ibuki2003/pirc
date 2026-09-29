@@ -22,6 +22,7 @@ export interface ClientToServer {
     "session.setName": Forward<"host.setName">;
     "session.listModels": Forward<"host.listModels">;
     "session.listCommands": Forward<"host.listCommands">;
+    "session.completePath": Forward<"host.completePath">;
     ping: { params: Record<string, never>; result: Record<string, never> };
   };
   notifications: Record<string, never>;

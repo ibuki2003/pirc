@@ -29,7 +29,8 @@ export class ClientConnection {
         | "host.setThinkingLevel"
         | "host.setName"
         | "host.listModels"
-        | "host.listCommands",
+        | "host.listCommands"
+        | "host.completePath",
     >(method: M, p: { instanceId: string }) => {
       const { instanceId, ...params } = p;
       return this.registry.host(instanceId).peer.request(
@@ -85,6 +86,7 @@ export class ClientConnection {
         "session.setName": (p) => forward("host.setName", p),
         "session.listModels": (p) => forward("host.listModels", p),
         "session.listCommands": (p) => forward("host.listCommands", p),
+        "session.completePath": (p) => forward("host.completePath", p),
         ping: () => ({}),
       },
     });
