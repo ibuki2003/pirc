@@ -6,9 +6,10 @@
   import BlobImage from "./BlobImage.svelte";
   import ToolCallView from "./ToolCallView.svelte";
   type Call = Extract<ProjectedAssistantEntry["message"]["content"][number], { type: "toolCall" }>;
-  let { item, results, instanceId, expand, tools }: {
+  let { item, results, instanceId, expand, tools, showHeader = true }: {
     item: ProjectedEntry; results: ProjectedEntry[]; instanceId: string; expand: (id: string) => Promise<void>;
     tools: Map<string, ToolProgress>;
+    showHeader?: boolean;
   } = $props();
   let entry = $derived(item.entry);
   let error = $state("");
@@ -47,7 +48,7 @@
     {#if entry.message.role === "toolResult"}
       <!-- Tool results are displayed with their matching tool call. -->
     {:else}
-      <header>{entry.message.role === "assistant" ? "assistant" : entry.message.role === "user" ? "you" : entry.message.role}</header>
+      {#if showHeader}<header>{entry.message.role === "assistant" ? "assistant" : entry.message.role === "user" ? "you" : entry.message.role}</header>{/if}
       {#if entry.message.role === "bashExecution"}
         <details class="tool" class:tool-error={entry.message.cancelled || (entry.message.exitCode !== undefined && entry.message.exitCode !== 0)} open={bashOpen} ontoggle={e => { bashOpen = e.currentTarget.open; }}>
           <summary><span class="tool-preview">{entry.message.command}</span></summary>
