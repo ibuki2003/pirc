@@ -1,16 +1,15 @@
 <script lang="ts">
   import type { RedactedToolCall } from "@pirc/api";
+  import ToolPath from "./ToolPath.svelte";
+  import ChangeCounts from "./ChangeCounts.svelte";
   let { changes }: { changes?: RedactedToolCall["changes"] } = $props();
-  function counts(change: NonNullable<RedactedToolCall["changes"]>[number]): string {
-    const values = [
-      change.added === undefined ? "" : `+${change.added}`,
-      change.removed === undefined ? "" : `-${change.removed}`,
-    ].filter(Boolean).join(" ");
-    return values ? ` (${values})` : "";
-  }
 </script>
-<span class="tool-preview">
-  {#each changes ?? [] as change, index}
-    {#if index}, {/if}{change.path}{counts(change)}
+<ul class="tool-preview patch-files">
+  {#each changes ?? [] as change}
+    <li><ToolPath path={change.path} /> <ChangeCounts added={change.added} removed={change.removed} /></li>
   {/each}
-</span>
+</ul>
+<style>
+  .patch-files { list-style: none; margin: 0; padding: 0; }
+  li { overflow: hidden; text-overflow: ellipsis; }
+</style>

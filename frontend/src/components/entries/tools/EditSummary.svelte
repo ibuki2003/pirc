@@ -1,5 +1,7 @@
 <script lang="ts">
   import type { RedactedToolCall } from "@pirc/api";
+  import ToolPath from "./ToolPath.svelte";
+  import ChangeCounts from "./ChangeCounts.svelte";
   let { path, change }: { path: string; change?: NonNullable<RedactedToolCall["changes"]>[number] } = $props();
 </script>
-<span class="tool-preview">{path}{#if change} (+{change.added ?? 0} -{change.removed ?? 0}){/if}</span>
+<span class="tool-preview"><ToolPath {path} />{#if change} <ChangeCounts added={change.added ?? 0} removed={change.removed ?? 0} />{/if}</span>
