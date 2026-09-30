@@ -35,7 +35,7 @@
         const loaded = commands ?? await connection.peer.request("session.listCommands", { instanceId } as never);
         if (request !== revision) return;
         commands = loaded;
-        candidates = matchingCommands(commands, current.prefix).map(command => ({
+        candidates = matchingCommands([...commands, { name: "compact", description: "会話を圧縮" }], current.prefix).map(command => ({
           value: "/" + command.name + " ", label: "/" + command.name, description: command.description,
         }));
       } else {
@@ -75,7 +75,13 @@
     busy = true;
     error = "";
     try {
-      await connection.peer?.request("session.prompt", { instanceId, text, images, deliverAs });
+      const compact = /^\/compact(?:\s|$)/.test(text);
+      if (compact && images.length) throw new Error("/compact に画像は添付できません");
+      if (compact) {
+        await connection.peer?.request("session.compact", { instanceId, instructions: text.slice("/compact".length).trim() || undefined });
+      } else {
+        await connection.peer?.request("session.prompt", { instanceId, text, images, deliverAs });
+      }
       text = ""; images = [];
       revision++; token = undefined; candidates = [];
     } catch (e) { error = String(e); } finally { busy = false; }
