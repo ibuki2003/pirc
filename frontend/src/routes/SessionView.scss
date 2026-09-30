@@ -1,7 +1,8 @@
 .view {
-  height: 100dvh;
+  height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 
   .session-bar {
     flex-shrink: 0;
@@ -89,6 +90,7 @@
   width: min(100%, 1050px);
   margin: 0 auto;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding: .75rem;
   background: #fff;
   @media (prefers-color-scheme: dark) { background: #202937; }

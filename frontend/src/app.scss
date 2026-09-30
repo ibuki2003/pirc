@@ -1,10 +1,22 @@
 :root { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color-scheme: light dark; }
 * { box-sizing: border-box; }
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
 body {
   margin: 0;
   background: #f6f7fa;
   color: #1c2533;
   @media (prefers-color-scheme: dark) { background: #121722; color: #edf0f7; }
+}
+#app {
+  width: 100%;
+  height: 100%;
+  height: 100svh;
+  height: 100dvh;
+  overflow-y: auto;
 }
 
 button, select, textarea, .button { font: inherit; }
