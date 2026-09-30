@@ -4,6 +4,14 @@
 @use "@smui/icon-button/style" as icon-button;
 @use "@smui/textfield/style" as textfield;
 @use "@smui/textfield/styles/index" as textfield-styles;
+@use "@smui/top-app-bar/style" as top-app-bar;
+@use "@smui/dialog/style" as dialog;
+@use "@smui/checkbox/style" as checkbox;
+@use "@smui/form-field/style" as form-field;
+@use "@smui/banner/style" as banner;
+@use "@smui/menu/style" as menu;
+@use "@smui/list/style" as list;
+@use "@smui/slider/style" as slider;
 
 .picker .mdc-text-field--outlined {
   @include textfield-styles.outlined-density(-3);

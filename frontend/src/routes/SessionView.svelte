@@ -5,17 +5,25 @@
   import { sessions } from "../lib/sessions.svelte.ts";
   import { connection } from "../lib/connection.svelte.ts";
   import type { ClientToServer } from "@pirc/api";
-  import StatusBar from "../components/StatusBar.svelte";
   import Transcript from "../components/Transcript.svelte";
   import Composer from "../components/Composer.svelte";
-  import ModelPicker from "../components/ModelPicker.svelte";
-  import ThinkingPicker from "../components/ThinkingPicker.svelte";
+  import ConnectionBanner from "../components/ConnectionBanner.svelte";
+  import TopAppBar, { Row, Section, Title } from "@smui/top-app-bar";
+  import IconButton, { Icon } from "@smui/icon-button";
+  import Menu from "@smui/menu";
+  import List, { Item } from "@smui/list";
+  import Banner, { Label } from "@smui/banner";
+  import Dialog, { Title as DialogTitle, Content, Actions } from "@smui/dialog";
+  import Checkbox from "@smui/checkbox";
+  import FormField from "@smui/form-field";
+  import Button from "@smui/button";
+  import { mdiArrowLeft, mdiDotsVertical } from "@mdi/js";
   let { instanceId }: { instanceId: string } = $props();
   let store = $derived(new MirrorStore(instanceId));
   let scrollElement = $state<HTMLDivElement | null>(null);
   let atBottom = true;
   type SavedSession = ClientToServer["requests"]["session.listSessions"]["result"][number];
-  let dialog: HTMLDialogElement;
+  let dialogOpen = $state(false);
   let modal = $state<"new" | "resume">("new");
   let saved = $state<SavedSession[]>([]);
   let cwdOnly = $state(true);
@@ -23,13 +31,15 @@
   let loading = $state(false);
   let switching = $state(false);
   let switchRequested = $state(false);
+  let menuOpen = $state(false);
+  let canSwitch = $derived(!switchRequested && !store.mirror?.state.status.streaming);
   let visibleSessions = $derived(saved.filter(item => !cwdOnly || item.cwd === store.mirror?.state.cwd));
   async function openModal(kind: "new" | "resume") {
     modal = kind;
     modalError = "";
     cwdOnly = true;
     saved = [];
-    dialog.showModal();
+    dialogOpen = true;
     if (kind === "resume") {
       loading = true;
       try {
@@ -45,7 +55,7 @@
       if (!connection.peer) throw new Error("接続されていません");
       await connection.peer.request("session.switchSession", { instanceId, path });
       switchRequested = true;
-      dialog.close();
+      dialogOpen = false;
     } catch (error) { modalError = String(error); }
     finally { switching = false; }
   }
@@ -93,55 +103,84 @@
   });
 </script>
 <div class="view">
-  <nav>
-    <a href="#/">← セッション一覧</a><strong>{store.mirror?.state.name || store.mirror?.state.sessionId || instanceId}</strong>
-    {#if store.mirror && !store.closed}
-      <button type="button" disabled={switchRequested || store.mirror.state.status.streaming} onclick={() => void openModal("new")}>新規</button>
-      <button type="button" disabled={switchRequested || store.mirror.state.status.streaming} onclick={() => void openModal("resume")}>再開</button>
-    {/if}
-  </nav>
-  <dialog bind:this={dialog} class="session-dialog">
-    {#if modal === "new"}
-      <h2>新しいセッション</h2>
-      <p>現在のセッションから切り替えて、空のセッションを開きますか？</p>
-    {:else}
-      <h2>セッションを再開</h2>
-      <label><input type="checkbox" bind:checked={cwdOnly} /> 現在の作業ディレクトリのみ</label>
-      {#if loading}<p>セッションを読み込み中…</p>
-      {:else if !visibleSessions.length}<p>該当するセッションはありません。</p>
-      {:else}
-        <div class="saved-sessions">
-          {#each visibleSessions as item (item.path)}
-            <button type="button" disabled={switching} onclick={() => void switchTo(item.path)}>
-              <strong>{item.name || item.firstMessage || item.id}</strong>
-              <small>{item.cwd || "作業ディレクトリ不明"} · {new Date(item.modified).toLocaleString()}</small>
-            </button>
-          {/each}
-        </div>
+  <TopAppBar variant="static" class="session-bar">
+    <Row>
+      <Section align="start">
+        <IconButton href="#/" aria-label="セッション一覧へ戻る">
+          <Icon tag="svg" viewBox="0 0 24 24"><path d={mdiArrowLeft} /></Icon>
+        </IconButton>
+        <Title class="session-title">
+          <span class="session-heading">
+            {#if store.mirror?.state.name}<span class="session-name" title={store.mirror.state.name}>{store.mirror.state.name}</span>{/if}
+            {#if store.mirror?.state.name && store.mirror?.state.cwd}<span aria-hidden="true">·</span>{/if}
+            {#if store.mirror?.state.cwd}
+              <span class="session-cwd" title={store.mirror.state.cwd}>{store.mirror.state.cwd}</span>
+            {:else if !store.mirror?.state.name}<span>セッション</span>{/if}
+          </span>
+          <small title={store.mirror?.state.sessionId || instanceId}>{store.mirror?.state.sessionId || instanceId}</small>
+        </Title>
+      </Section>
+      {#if store.mirror && !store.closed}
+        <Section align="end" toolbar>
+          <div class="menu-anchor">
+            <IconButton aria-label="セッション操作" aria-haspopup="menu" aria-expanded={menuOpen}
+              onclick={() => menuOpen = !menuOpen}>
+              <Icon tag="svg" viewBox="0 0 24 24"><path d={mdiDotsVertical} /></Icon>
+            </IconButton>
+            <Menu anchor anchorCorner="BOTTOM_END" bind:open={menuOpen} class="session-menu">
+              <List>
+                <Item disabled={!canSwitch} onclick={() => { if (canSwitch) void openModal("new"); }}>新規セッション</Item>
+                <Item disabled={!canSwitch} onclick={() => { if (canSwitch) void openModal("resume"); }}>セッションを再開</Item>
+              </List>
+            </Menu>
+          </div>
+        </Section>
       {/if}
-    {/if}
-    {#if modalError}<p role="alert">{modalError}</p>{/if}
-    <div class="dialog-actions">
-      <button type="button" disabled={switching} onclick={() => dialog.close()}>キャンセル</button>
-      {#if modal === "new"}<button type="button" disabled={switching} onclick={() => void switchTo()}>新規セッションを開く</button>{/if}
-    </div>
-  </dialog>
-  {#if store.closed}<div class="banner" role="status">このインスタンスは終了しました。
-    {#if successor}<a href={`#/s/${encodeURIComponent(successor.instanceId)}`}>同じホストの新しいセッションへ</a>{/if}
-  </div>{/if}
-  {#if store.error}<p role="alert">{store.error}</p>{/if}
+    </Row>
+  </TopAppBar>
+  <ConnectionBanner />
+  <Dialog bind:open={dialogOpen} class="session-dialog" aria-label={modal === "new" ? "新しいセッション" : "セッションを再開"}>
+    <DialogTitle>{modal === "new" ? "新しいセッション" : "セッションを再開"}</DialogTitle>
+    <Content>
+      {#if modal === "new"}
+        <p>現在のセッションから切り替えて、空のセッションを開きますか？</p>
+      {:else}
+        <FormField><Checkbox bind:checked={cwdOnly} />{#snippet label()}現在の作業ディレクトリのみ{/snippet}</FormField>
+        {#if loading}<p>セッションを読み込み中…</p>
+        {:else if !visibleSessions.length}<p>該当するセッションはありません。</p>
+        {:else}
+          <div class="saved-sessions">
+            {#each visibleSessions as item (item.path)}
+              <button type="button" disabled={switching} onclick={() => void switchTo(item.path)}>
+                <strong>{item.name || item.firstMessage || item.id}</strong>
+                <small>{item.cwd || "作業ディレクトリ不明"} · {new Date(item.modified).toLocaleString()}</small>
+              </button>
+            {/each}
+          </div>
+        {/if}
+      {/if}
+      {#if modalError}<p role="alert">{modalError}</p>{/if}
+    </Content>
+    <Actions>
+      <Button disabled={switching} onclick={() => dialogOpen = false}>キャンセル</Button>
+      {#if modal === "new"}<Button disabled={switching} onclick={() => void switchTo()}>新規セッションを開く</Button>{/if}
+    </Actions>
+  </Dialog>
+  {#if store.closed}
+    <Banner open>
+      {#snippet label()}<Label>このインスタンスは終了しました。
+        {#if successor}<a href={`#/s/${encodeURIComponent(successor.instanceId)}`}>同じホストの新しいセッションへ</a>{/if}
+      </Label>{/snippet}
+    </Banner>
+  {/if}
+  {#if store.error}<Banner open>{#snippet label()}<Label>{store.error}</Label>{/snippet}</Banner>{/if}
+  {#each store.notices as notice}<Banner open>{#snippet label()}<Label>{notice.message}</Label>{/snippet}</Banner>{/each}
   {#if store.mirror}
-    <div class="status-bar">
-      <ModelPicker {instanceId} sessionState={store.mirror.state} />
-      <ThinkingPicker {instanceId} sessionState={store.mirror.state} />
-      <StatusBar state={store.mirror.state} />
-    </div>
     <div class="scroll" bind:this={scrollElement} onscroll={trackScroll}>
       <Transcript entries={store.branch} {instanceId} expand={id => store.expandEntry(id)}
         loadMore={() => store.loadAncestors()} hasMore={store.mirror.hasMoreBefore}
         live={store.mirror.live} tools={store.mirror.tools} toolDurations={store.mirror.toolDurations} streaming={store.mirror.state.status.streaming} />
     </div>
-    {#each store.notices as notice}<div class="banner" role="alert">{notice.message}</div>{/each}
-    {#if !store.closed}<Composer {instanceId} streaming={store.mirror.state.status.streaming} />{/if}
+    {#if !store.closed}<Composer {instanceId} sessionState={store.mirror.state} streaming={store.mirror.state.status.streaming} />{/if}
   {:else if store.loading}<p>セッションを読み込み中…</p>{/if}
 </div>

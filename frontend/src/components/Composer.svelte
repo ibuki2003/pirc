@@ -1,13 +1,16 @@
 <script lang="ts">
   import "./Composer.scss";
-  import type { ImageContent } from "@pirc/api";
+  import type { ImageContent, SessionState } from "@pirc/api";
   import { connection } from "../lib/connection.svelte.ts";
   import { resizeImage } from "../lib/image.ts";
   import { completionToken, matchingCommands, type CompletionToken } from "../lib/completion.ts";
   import { enterMode } from "../lib/composer-keyboard.ts";
   import { tick } from "svelte";
   import Button from "@smui/button";
-  let { instanceId, streaming }: { instanceId: string; streaming: boolean } = $props();
+  import Banner, { Label } from "@smui/banner";
+  import ModelPicker from "./ModelPicker.svelte";
+  import StatusBar from "./StatusBar.svelte";
+  let { instanceId, sessionState, streaming }: { instanceId: string; sessionState: SessionState; streaming: boolean } = $props();
   let text = $state("");
   let images = $state<ImageContent[]>([]);
   let busy = $state(false);
@@ -84,7 +87,7 @@
   }
 </script>
 <div class="composer">
-  {#if error}<div role="alert">{error}</div>{/if}
+  {#if error}<Banner open>{#snippet label()}<Label>{error}</Label>{/snippet}</Banner>{/if}
   <div class="composer-input">
   <textarea bind:this={editor} bind:value={text} placeholder="メッセージを入力" enterkeyhint="enter"
     oninput={() => void updateCompletion()} onclick={() => void updateCompletion()}
@@ -119,13 +122,17 @@
     </div>
   {/if}
   </div>
-  {#if images.length}<small>画像 {images.length} 枚 <button onclick={() => images = []}>削除</button></small>{/if}
+  {#if images.length}<small>画像 {images.length} 枚 <Button onclick={() => images = []}>削除</Button></small>{/if}
   <div class="actions">
+    <ModelPicker {instanceId} {sessionState} />
+    <StatusBar state={sessionState} />
     <label class="button">画像を追加<input type="file" accept="image/*" multiple onchange={attach} hidden /></label>
-    <Button disabled={busy || !connection.peer || (!text.trim() && !images.length)} onclick={() => send(streaming ? "steer" : undefined)}>{streaming ? "割り込む" : "送信"}</Button>
-    {#if streaming}
-      <button disabled={busy || !connection.peer || (!text.trim() && !images.length)} onclick={() => send("followUp")}>後で送信</button>
-      <button onclick={abort}>中断</button>
-    {/if}
+    <div class="send-actions">
+      {#if streaming}
+        <Button onclick={abort}>中断</Button>
+        <Button disabled={busy || !connection.peer || (!text.trim() && !images.length)} onclick={() => send("followUp")}>後で送信</Button>
+      {/if}
+      <Button disabled={busy || !connection.peer || (!text.trim() && !images.length)} onclick={() => send(streaming ? "steer" : undefined)}>{streaming ? "割り込む" : "送信"}</Button>
+    </div>
   </div>
 </div>

@@ -1,6 +1,10 @@
 .composer {
+  width: min(100%, 1050px);
+  margin-inline: auto;
   border-top: 1px solid #aaa5;
   padding: .5rem;
+  background: #fff;
+  @media (prefers-color-scheme: dark) { background: #202937; }
 
   .composer-input { position: relative; }
 
@@ -62,5 +66,13 @@
     gap: .65rem;
     padding: .4rem .75rem;
     font-size: .85rem;
+    .send-actions {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: .65rem;
+      margin-left: auto;
+    }
   }
 }

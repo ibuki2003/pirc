@@ -3,6 +3,7 @@
   import type { LiveMessage, ProjectedEntry, ToolProgress } from "@pirc/api";
   import EntryView from "./entries/EntryView.svelte";
   import LiveMessageView from "./LiveMessage.svelte";
+  import Button from "@smui/button";
   let { entries, instanceId, expand, loadMore, hasMore, live, tools, toolDurations, streaming }: {
     entries: ProjectedEntry[]; instanceId: string; expand: (id: string) => Promise<void>;
     loadMore: () => Promise<void>; hasMore: boolean;
@@ -45,7 +46,7 @@
   })));
 </script>
 <div class="transcript">
-  {#if hasMore}<button disabled={loading} onclick={older}>古い履歴を読み込む</button>{/if}
+  {#if hasMore}<Button disabled={loading} onclick={older}>古い履歴を読み込む</Button>{/if}
   {#each rows as row, index (row.kind === "entry" ? row.item.entry.id : row.id)}
     {#if row.kind === "settings"}
       <small class="muted-meta settings-change">

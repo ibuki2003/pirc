@@ -12,7 +12,6 @@
     return () => { stop(); connection.stop(); };
   });
 </script>
-<ConnectionBanner />
 {#if router.instanceId}
   {#key router.instanceId}<SessionView instanceId={router.instanceId} />{/key}
-{:else}<SessionList />{/if}
+{:else}<ConnectionBanner /><SessionList />{/if}
