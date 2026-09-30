@@ -11,6 +11,8 @@ export interface ClientToServer {
   requests: {
     "sessions.subscribe": { params: Record<string, never>; result: SessionSummary[] };
     "sessions.unsubscribe": { params: Record<string, never>; result: Record<string, never> };
+    "sessions.subscribeCompletions": { params: Record<string, never>; result: Record<string, never> };
+    "sessions.unsubscribeCompletions": { params: Record<string, never>; result: Record<string, never> };
     "session.attach": { params: { instanceId: string; stream: StreamOptions }; result: Record<string, never> };
     "session.detach": { params: { instanceId: string }; result: Record<string, never> };
     "session.setStreamOptions": { params: { instanceId: string; stream: StreamOptions }; result: Record<string, never> };
@@ -33,6 +35,7 @@ export interface ServerToClient {
   requests: { ping: { params: Record<string, never>; result: Record<string, never> } };
   notifications: {
     "sessions.changed": { sessions: SessionSummary[] };
+    "session.completed": Pick<SessionSummary, "instanceId" | "hostname" | "cwd" | "name">;
     "session.ops": { instanceId: string; ops: SyncOp[] };
     "session.notice": { instanceId: string } & Notice;
     "session.resync": { instanceId: string; reason: "host_reconnected" | "backpressure" };

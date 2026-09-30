@@ -15,13 +15,19 @@ export function router(
 ): (req: Request) => Promise<Response> {
   return async (req) => {
     const url = new URL(req.url);
-    if (url.pathname === "/api/host" || url.pathname === "/api/ws") {
+    if (url.pathname === "/api/host" || url.pathname === "/api/ws" ||
+      url.pathname === "/api/notify") {
       if (req.headers.get("upgrade")?.toLowerCase() !== "websocket") {
         return new Response("WebSocket required", { status: 426 });
       }
       if (
         url.pathname === "/api/ws" && !allowedOrigin(req, config.allowedOrigins)
       ) return new Response("Forbidden origin", { status: 403 });
+      // Non-browser clients do not send Origin. Never allow a browser to use
+      // this endpoint to bypass the Origin check on /api/ws.
+      if (url.pathname === "/api/notify" && req.headers.has("origin")) {
+        return new Response("Forbidden origin", { status: 403 });
+      }
       return url.pathname === "/api/host"
         ? hostEndpoint(req, registry)
         : clientEndpoint(req, registry);

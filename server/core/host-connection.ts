@@ -8,7 +8,7 @@ import {
   type SessionSummary,
   type Transport,
 } from "@pirc/api";
-import { initialSummary, updateSummary } from "./summary.ts";
+import { completions, initialSummary, updateSummary } from "./summary.ts";
 import type { Registry } from "./registry.ts";
 
 export class HostConnection {
@@ -58,6 +58,7 @@ export class HostConnection {
             this.close();
             return;
           }
+          for (const session of completions(this.summary, ops)) this.registry.completed(session);
           this.summary = updateSummary(this.summary, ops);
           this.registry.fanout(this.summary.instanceId, ops);
           this.registry.changed();

@@ -75,3 +75,21 @@ Deno.test("HTTP sync forwards cursor and projects with query stream", async () =
   });
   registry.unregister(host, "quit");
 });
+
+Deno.test("browser Origin cannot bypass /api/ws through /api/notify", async () => {
+  const handle = router(new Registry(), {
+    port: 8787,
+    staticDir: "",
+    allowedOrigins: new Set(),
+  });
+  for (const [path, origin] of [
+    ["/api/notify", "http://localhost:8787"],
+    ["/api/notify", "https://foreign.example"],
+    ["/api/ws", ""],
+  ]) {
+    const headers = new Headers({ upgrade: "websocket" });
+    if (origin) headers.set("origin", origin);
+    const response = await handle(new Request(`http://localhost:8787${path}`, { headers }));
+    assertEquals(response.status, 403);
+  }
+});

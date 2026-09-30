@@ -13,6 +13,7 @@ import type { ClientConnection } from "./client-connection.ts";
 export class Registry {
   private hosts = new Map<string, HostConnection>();
   private subscribers = new Set<ClientConnection>();
+  private completionSubscribers = new Set<ClientConnection>();
   private viewers = new Map<string, Set<ClientConnection>>();
   private offline = new Set<string>();
   private changedTimer?: ReturnType<typeof setTimeout>;
@@ -72,6 +73,15 @@ export class Registry {
   unsubscribe(client: ClientConnection): void {
     this.subscribers.delete(client);
   }
+  subscribeCompletions(client: ClientConnection): void {
+    this.completionSubscribers.add(client);
+  }
+  unsubscribeCompletions(client: ClientConnection): void {
+    this.completionSubscribers.delete(client);
+  }
+  completed(session: Pick<SessionSummary, "instanceId" | "hostname" | "cwd" | "name">): void {
+    for (const client of this.completionSubscribers) client.completed(session);
+  }
   attach(client: ClientConnection, id: string, stream: StreamOptions): void {
     this.host(id);
     let group = this.viewers.get(id);
@@ -89,6 +99,7 @@ export class Registry {
   }
   remove(client: ClientConnection): void {
     this.unsubscribe(client);
+    this.unsubscribeCompletions(client);
     for (const id of [...client.streams.keys()]) this.detach(client, id);
   }
   viewerCount(id: string): void {

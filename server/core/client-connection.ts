@@ -46,6 +46,14 @@ export class ClientConnection {
           this.registry.unsubscribe(this);
           return {};
         },
+        "sessions.subscribeCompletions": () => {
+          this.registry.subscribeCompletions(this);
+          return {};
+        },
+        "sessions.unsubscribeCompletions": () => {
+          this.registry.unsubscribeCompletions(this);
+          return {};
+        },
         "session.attach": ({ instanceId, stream }) => {
           this.checkStream(stream);
           this.registry.attach(this, instanceId, stream);
@@ -149,6 +157,9 @@ export class ClientConnection {
   }
   sessionsChanged(sessions: SessionSummary[]): void {
     this.peer.notify("sessions.changed", { sessions });
+  }
+  completed(session: ServerToClient["notifications"]["session.completed"]): void {
+    this.peer.notify("session.completed", session);
   }
   private disconnect(): void {
     if (this.timer !== undefined) clearInterval(this.timer);

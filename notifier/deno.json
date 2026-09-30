@@ -1,0 +1,15 @@
+{
+  "imports": {
+    "@pirc/api": "../api/src/index.ts",
+    "@earendil-works/pi-coding-agent": "npm:@earendil-works/pi-coding-agent@0.87.1"
+  },
+  "tasks": {
+    "start": "deno run --allow-env=PIRC_SERVER_URL,NTFY_TOPIC --allow-net main.ts",
+    "check": "deno check main.ts test.ts",
+    "test": "deno test test.ts"
+  },
+  "compilerOptions": {
+    "strict": true,
+    "verbatimModuleSyntax": true
+  }
+}
