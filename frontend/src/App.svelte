@@ -6,12 +6,15 @@
   import ConnectionBanner from "./components/ConnectionBanner.svelte";
   import SessionList from "./routes/SessionList.svelte";
   import SessionView from "./routes/SessionView.svelte";
+  import GodMode from "./routes/GodMode.svelte";
   onMount(() => {
     connection.start();
     const stop = sessions.start();
     return () => { stop(); connection.stop(); };
   });
 </script>
-{#if router.instanceId}
+{#if router.godMode}
+  <GodMode />
+{:else if router.instanceId}
   {#key router.instanceId}<SessionView instanceId={router.instanceId} />{/key}
 {:else}<ConnectionBanner /><SessionList />{/if}
