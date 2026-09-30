@@ -55,6 +55,9 @@ importers:
       '@smui/line-ripple':
         specifier: ^9.0.2
         version: 9.0.2
+      '@smui/linear-progress':
+        specifier: ^9.0.2
+        version: 9.0.2
       '@smui/list':
         specifier: ^9.0.2
         version: 9.0.2
@@ -767,6 +770,9 @@ packages:
 
   '@smui/line-ripple@9.0.2':
     resolution: {integrity: sha512-qEZ0FRfN5FyFwjEqlsC+ZSoUO2l78CpkQtNWkkjBoNrqaZX/1TnJBWMU87Jo6R7l7Lr2nOvNTODe/AGHo9A1qQ==}
+
+  '@smui/linear-progress@9.0.2':
+    resolution: {integrity: sha512-XgxMB4BYkLxo1R/sBpN0vzZQxOxcn3diqIiXFsEx+RVlnt/y946+EhmoqZo0aA4xo6kF52gn7wO9aRKFndj8cQ==}
 
   '@smui/list@9.0.2':
     resolution: {integrity: sha512-o/TaUhW9tGdS9/QL1pNtIlybV/Lt7ktpe0bdGOkSmeaqEvrlY0OIJXi16ouAVTf9Rsm/FhKh1polAqgJ9ECLkw==}
@@ -2328,6 +2334,10 @@ snapshots:
       '@smui/touch-target': 9.0.2
 
   '@smui/line-ripple@9.0.2':
+    dependencies:
+      '@smui/common': 9.0.2
+
+  '@smui/linear-progress@9.0.2':
     dependencies:
       '@smui/common': 9.0.2
 

@@ -51,7 +51,16 @@
       cursor: pointer;
       &.highlighted, &:hover { background: #e9edf3; }
       small { color: #667085; }
-      span, small { overflow-wrap: anywhere; }
+      span {
+        flex: 0 1 auto;
+        max-width: 50%;
+        overflow-wrap: anywhere;
+      }
+      small {
+        flex: 1;
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
       @media (prefers-color-scheme: dark) {
         &.highlighted, &:hover { background: #303e52; }
         small { color: #aab5c5; }

@@ -12,6 +12,7 @@
 @use "@smui/menu/style" as menu;
 @use "@smui/list/style" as list;
 @use "@smui/slider/style" as slider;
+@use "@smui/linear-progress/style" as linear-progress;
 
 .picker .mdc-text-field--outlined {
   @include textfield-styles.outlined-density(-3);
