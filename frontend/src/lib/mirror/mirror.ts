@@ -8,6 +8,7 @@ export interface SessionMirror {
   leafId: string | null;
   live: LiveMessage | null;
   tools: Map<string, ToolProgress>;
+  toolDurations: Map<string, number>;
   seq: number;
   hasMoreBefore: boolean;
 }
@@ -27,6 +28,7 @@ export function applySnapshot(previous: SessionMirror | null, snapshot: SessionS
     leafId: snapshot.leafId,
     live: snapshot.live,
     tools: new Map(Object.entries(snapshot.tools)),
+    toolDurations: new Map(Object.entries(snapshot.toolDurations)),
     seq: snapshot.seq,
     hasMoreBefore: snapshot.mode === "delta" && previous ? previous.hasMoreBefore : snapshot.hasMoreBefore,
   };
@@ -37,7 +39,8 @@ export function applyOps(mirror: SessionMirror, ops: SyncOp[]): SessionMirror {
   // Work on a copy: an invalid batch must never leave a half-applied mirror.
   const next: SessionMirror = {
     ...mirror, entries: new Map(mirror.entries), entryIds: new Map(mirror.entryIds),
-    tools: new Map(mirror.tools), live: mirror.live ? { ...mirror.live, content: [...mirror.live.content] } : null,
+    tools: new Map(mirror.tools), toolDurations: new Map(mirror.toolDurations),
+    live: mirror.live ? { ...mirror.live, content: [...mirror.live.content] } : null,
   };
   for (const op of ops) {
     if (op.seq <= next.seq) continue;
@@ -62,7 +65,7 @@ export function applyOps(mirror: SessionMirror, ops: SyncOp[]): SessionMirror {
     } else if (op.op === "set" && op.target === "tool") {
       if (op.value) next.tools.set(op.key, op.value);
       else next.tools.delete(op.key);
-    }
+    } else if (op.op === "set" && op.target === "toolDuration") next.toolDurations.set(op.key, op.value);
     next.seq = op.seq;
   }
   return next;

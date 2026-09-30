@@ -22,7 +22,7 @@ import { MirrorStore } from "./mirror-store.svelte.ts";
 const snapshot: SessionSnapshot = {
   mode: "full", seq: 0, entryCount: 0, lastEntryId: null, leafId: null,
   state: { instanceId: "i" } as SessionState,
-  entries: [], hasMoreBefore: false, live: null, tools: {},
+  entries: [], hasMoreBefore: false, live: null, tools: {}, toolDurations: {},
 };
 
 describe("MirrorStore", () => {

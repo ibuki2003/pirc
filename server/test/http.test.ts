@@ -33,7 +33,7 @@ Deno.test("HTTP sync forwards cursor and projects with query stream", async () =
           mode: "delta",
           state,
           live: null,
-          tools: {},
+          tools: {}, toolDurations: {},
           entries: [{
             index: 0,
             entry: {

@@ -10,6 +10,9 @@ import { LiveTracker } from "./live-tracker.ts";
 import { Outbox } from "./outbox.ts";
 import { StateTracker } from "./state-tracker.ts";
 
+// Keep per-session timings across session switches, without writing session files.
+const sessionDurations = new Map<string, Map<string, number>>();
+
 export class Bridge {
   private outbox: Outbox;
   private entries: EntryTracker;
@@ -26,7 +29,10 @@ export class Bridge {
     this.instanceId = previous?.instanceId ?? crypto.randomUUID();
     const push = (op: OpInput) => this.outbox.push(op);
     this.entries = new EntryTracker(ctx, push);
-    this.live = new LiveTracker(push);
+    const sessionKey = ctx.sessionManager.getSessionFile() ?? this.instanceId;
+    let durations = sessionDurations.get(sessionKey);
+    if (!durations) sessionDurations.set(sessionKey, durations = new Map());
+    this.live = new LiveTracker(push, durations);
     this.state = new StateTracker(pi, ctx, { instanceId: this.instanceId, hostId: host().hostId, hostname: hostname(), piVersion: "0.87.1" }, push);
     this.outbox = new Outbox(previous?.seq ?? 0, () => this.reconcile(), ops => this.connection.notify("session.ops", { ops }));
     const handlers: Handlers<ServerToHost> = {

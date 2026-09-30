@@ -8,6 +8,7 @@ export interface ToolDisplayCall {
   changes?: RedactedToolCall["changes"];
   results: ProjectedEntry[];
   progress?: ToolProgress;
+  durationMs?: number;
 }
 export interface ToolDisplay {
   calls: ToolDisplayCall[];

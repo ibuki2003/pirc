@@ -139,7 +139,7 @@
     <div class="scroll" bind:this={scrollElement} onscroll={trackScroll}>
       <Transcript entries={store.branch} {instanceId} expand={id => store.expandEntry(id)}
         loadMore={() => store.loadAncestors()} hasMore={store.mirror.hasMoreBefore}
-        live={store.mirror.live} tools={store.mirror.tools} streaming={store.mirror.state.status.streaming} />
+        live={store.mirror.live} tools={store.mirror.tools} toolDurations={store.mirror.toolDurations} streaming={store.mirror.state.status.streaming} />
     </div>
     {#each store.notices as notice}<div class="banner" role="alert">{notice.message}</div>{/each}
     {#if !store.closed}<Composer {instanceId} streaming={store.mirror.state.status.streaming} />{/if}

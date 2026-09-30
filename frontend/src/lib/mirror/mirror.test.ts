@@ -7,9 +7,17 @@ const item = (index: number, id: string, parentId: string | null) =>
   ({ index, entry: { type: "session_info" as const, id, parentId, timestamp: "", name: id } });
 const snapshot: SessionSnapshot = {
   mode: "full", state, seq: 0, entryCount: 2, lastEntryId: "b", leafId: "b",
-  entries: [item(1, "b", "a")], hasMoreBefore: true, live: null, tools: {},
+  entries: [item(1, "b", "a")], hasMoreBefore: true, live: null, tools: {}, toolDurations: {},
 };
 describe("mirror", () => {
+  it("synchronizes completed durations atomically and restores them on reconnect", () => {
+    const previous = applySnapshot(null, snapshot);
+    const next = applyOps(previous, [{ seq: 1, op: "set", target: "toolDuration", key: "bash", value: 2500 }]);
+    expect(previous.toolDurations.size).toBe(0);
+    expect(next.toolDurations.get("bash")).toBe(2500);
+    const reconnected = applySnapshot(null, { ...snapshot, seq: 1, toolDurations: { bash: 2500 } });
+    expect(reconnected.toolDurations).toEqual(next.toolDurations);
+  });
   it("tracks a partial branch and merges older entries", () => {
     const m = applySnapshot(null, snapshot);
     expect(missingAncestor(m)).toBe("a");

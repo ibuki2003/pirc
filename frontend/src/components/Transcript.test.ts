@@ -17,7 +17,7 @@ test("a finalized tool call with running progress is shown in a single details",
     toolName: "bash", startedAt: 0, command: "echo hello", output: "running", totalBytes: 7, truncatedHead: false,
   }]]);
   const { body } = render(Transcript, { props: {
-    entries, tools, live: null, streaming: true, instanceId: "instance",
+    entries, tools, toolDurations: new Map(), live: null, streaming: true, instanceId: "instance",
     expand: async () => {}, loadMore: async () => {}, hasMore: false,
   } });
   expect(body.match(/<details class="tool"/g)).toHaveLength(1);
@@ -25,7 +25,7 @@ test("a finalized tool call with running progress is shown in a single details",
   expect(body).toContain("実行中");
   expect(body).toContain("running");
   const overlapping = render(Transcript, { props: {
-    entries, tools, live: { provider: "p", model: "m", startedAt: 0,
+    entries, tools, toolDurations: new Map(), live: { provider: "p", model: "m", startedAt: 0,
       content: [{ type: "toolCall", id: "bash-call", name: "bash" }] },
     streaming: true, instanceId: "instance",
     expand: async () => {}, loadMore: async () => {}, hasMore: false,

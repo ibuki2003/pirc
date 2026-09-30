@@ -6,9 +6,10 @@
   import BlobImage from "./BlobImage.svelte";
   import HistoryToolView from "./tools/HistoryToolView.svelte";
   type Call = Extract<ProjectedAssistantEntry["message"]["content"][number], { type: "toolCall" }>;
-  let { item, results, instanceId, expand, tools, showHeader = true }: {
+  let { item, results, instanceId, expand, tools, toolDurations, showHeader = true }: {
     item: ProjectedEntry; results: ProjectedEntry[]; instanceId: string; expand: (id: string) => Promise<void>;
     tools: Map<string, ToolProgress>;
+    toolDurations: Map<string, number>;
     showHeader?: boolean;
   } = $props();
   let entry = $derived(item.entry);
@@ -66,7 +67,7 @@
           {:else if block.type === "toolCall"}
             {#if block.name !== "read" || !readAt(entry.message.content, index - 1)}
               <HistoryToolView calls={block.name === "read" ? readCalls(entry.message.content, index) : [block]}
-                {results} {instanceId} entryId={entry.id} {expand} {tools} />
+                {results} {instanceId} entryId={entry.id} {expand} {tools} {toolDurations} />
             {/if}
           {/if}
         {/each}

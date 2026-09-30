@@ -4,13 +4,14 @@
   import type { ToolDisplay } from "./types";
 
   type Call = Extract<ProjectedAssistantEntry["message"]["content"][number], { type: "toolCall" }>;
-  let { calls, results, instanceId, entryId, expand, tools }: {
+  let { calls, results, instanceId, entryId, expand, tools, toolDurations }: {
     calls: Call[];
     results: ProjectedEntry[];
     instanceId: string;
     entryId: string;
     expand: (id: string) => Promise<void>;
     tools: Map<string, ToolProgress>;
+    toolDurations: Map<string, number>;
   } = $props();
   let error = $state("");
   // Full-entry retrieval replaces the projected call; retain its server-computed summary.
@@ -34,6 +35,7 @@
       id: call.id, name: call.name, arguments: call.arguments,
       changes: "changes" in call ? call.changes : projectedChanges[i],
       results: toolResults[i], progress: tools.get(call.id),
+      durationMs: toolDurations.get(call.id),
     })),
     failed, bytes: showSize ? bytes : undefined, error,
   });

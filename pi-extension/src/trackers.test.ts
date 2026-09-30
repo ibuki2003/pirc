@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ExtensionContext, MessageStartEvent, MessageUpdateEvent, ToolExecutionStartEvent } from "@earendil-works/pi-coding-agent";
+import type { ExtensionContext, MessageStartEvent, MessageUpdateEvent, ToolExecutionStartEvent, ToolExecutionEndEvent } from "@earendil-works/pi-coding-agent";
 import type { OpInput, SyncOp } from "../../api/src/index.ts";
 import { EntryTracker } from "./entry-tracker.ts";
 import { LiveTracker } from "./live-tracker.ts";
@@ -50,6 +50,27 @@ describe("EntryTracker", () => {
 });
 
 describe("LiveTracker", () => {
+  it("publishes bash duration once at completion and retains it independently of progress", () => {
+    vi.useFakeTimers();
+    try {
+      const ops: OpInput[] = [];
+      const durations = new Map<string, number>();
+      const tracker = new LiveTracker(op => ops.push(op), durations);
+      tracker.toolStart({ toolCallId: "bash", toolName: "bash", args: {} } as ToolExecutionStartEvent);
+      vi.advanceTimersByTime(2500);
+      expect(ops).toHaveLength(1);
+      tracker.toolEnd({ toolCallId: "bash" } as ToolExecutionEndEvent);
+      expect(ops.slice(1)).toEqual([
+        { op: "set", target: "toolDuration", key: "bash", value: 2500 },
+        { op: "set", target: "tool", key: "bash", value: null },
+      ]);
+      expect(tracker.snapshot().tools).toEqual({});
+      expect(tracker.snapshot().toolDurations).toEqual({ bash: 2500 });
+      expect(new LiveTracker(() => {}, durations).snapshot().toolDurations).toEqual({ bash: 2500 });
+      tracker.toolEnd({ toolCallId: "unknown" } as ToolExecutionEndEvent);
+      expect(durations.size).toBe(1);
+    } finally { vi.useRealTimers(); }
+  });
   it("coalesces partial tool arguments, publishes final arguments immediately, and keeps bash command with progress", () => {
     vi.useFakeTimers();
     try {

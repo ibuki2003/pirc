@@ -7,9 +7,10 @@ export class LiveTracker {
   private lastToolUpdate = new Map<string, number>();
   private pendingCalls = new Map<number, Extract<LiveBlock, { type: "toolCall" }>>();
   private callTimer?: ReturnType<typeof setTimeout>;
-  constructor(private push: (op: OpInput) => void) {}
-  snapshot(): { live: LiveMessage | null; tools: Record<string, ToolProgress> } {
-    return { live: this.live && { ...this.live, content: this.live.content.map(b => ({ ...b })) }, tools: Object.fromEntries(this.tools) };
+  constructor(private push: (op: OpInput) => void, private durations = new Map<string, number>()) {}
+  snapshot(): { live: LiveMessage | null; tools: Record<string, ToolProgress>; toolDurations: Record<string, number> } {
+    return { live: this.live && { ...this.live, content: this.live.content.map(b => ({ ...b })) },
+      tools: Object.fromEntries(this.tools), toolDurations: Object.fromEntries(this.durations) };
   }
   start(event: MessageStartEvent): void {
     if (event.message.role !== "assistant") return;
@@ -83,6 +84,12 @@ export class LiveTracker {
     }
   }
   toolEnd(event: ToolExecutionEndEvent): void {
+    const tool = this.tools.get(event.toolCallId);
+    if (tool?.toolName === "bash") {
+      const duration = Math.max(0, Date.now() - tool.startedAt);
+      this.durations.set(event.toolCallId, duration);
+      this.push({ op: "set", target: "toolDuration", key: event.toolCallId, value: duration });
+    }
     this.tools.delete(event.toolCallId);
     this.lastToolUpdate.delete(event.toolCallId);
     this.push({ op: "set", target: "tool", key: event.toolCallId, value: null });
