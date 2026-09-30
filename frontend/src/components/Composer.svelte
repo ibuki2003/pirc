@@ -4,6 +4,7 @@
   import { connection } from "../lib/connection.svelte.ts";
   import { resizeImage } from "../lib/image.ts";
   import { completionToken, matchingCommands, type CompletionToken } from "../lib/completion.ts";
+  import { enterMode } from "../lib/composer-keyboard.ts";
   import { tick } from "svelte";
   import Button from "@smui/button";
   let { instanceId, streaming }: { instanceId: string; streaming: boolean } = $props();
@@ -85,25 +86,27 @@
 <div class="composer">
   {#if error}<div role="alert">{error}</div>{/if}
   <div class="composer-input">
-  <textarea bind:this={editor} bind:value={text} placeholder="メッセージを入力"
+  <textarea bind:this={editor} bind:value={text} placeholder="メッセージを入力" enterkeyhint="enter"
     oninput={() => void updateCompletion()} onclick={() => void updateCompletion()}
     onfocus={() => void updateCompletion()}
     onkeyup={e => { if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) void updateCompletion(); }}
     onkeydown={e => {
-    if (token && candidates.length && !e.isComposing) {
+    const mode = enterMode(e, window.matchMedia("(pointer: coarse)").matches);
+    if (mode === "composition") return;
+    if (token && candidates.length) {
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();
         highlighted = (highlighted + (e.key === "ArrowDown" ? 1 : candidates.length - 1)) % candidates.length;
         return;
       }
-      if (e.key === "Tab" || e.key === "Enter") {
+      if (e.key === "Tab" || (e.key === "Enter" && mode === "shortcut")) {
         e.preventDefault(); void choose(highlighted); return;
       }
     }
     if (e.key === "Escape" && token) {
       e.preventDefault(); revision++; token = undefined; candidates = []; return;
     }
-    if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); void send(streaming ? "steer" : undefined); }
+    if (e.key === "Enter" && !e.shiftKey && mode === "shortcut") { e.preventDefault(); void send(streaming ? "steer" : undefined); }
   }}></textarea>
   {#if token && candidates.length}
     <div class="composer-completions" role="listbox" aria-label={token.kind === "command" ? "コマンド候補" : "パス候補"}>
