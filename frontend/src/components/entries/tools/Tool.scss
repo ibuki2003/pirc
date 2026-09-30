@@ -47,8 +47,8 @@
   @media (prefers-color-scheme: dark) { color: #aab5c5; }
 }
 
-.tool-preview { min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.live-status { font-weight: normal; margin-left: .4em; }
+.tool-preview { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.live-status { flex: none; white-space: nowrap; font-weight: normal; margin-left: .4em; }
 
 .tool-arguments {
   display: grid;
