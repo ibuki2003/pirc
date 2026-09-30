@@ -57,7 +57,7 @@
         showHeader={roleOf(row) === undefined || roleOf(row) !== roleOf(rows[index - 1])} />
     {/if}
   {/each}
-  <LiveMessageView {live} {tools} {visibleToolCalls} showHeader={roleOf(rows.at(-1)) !== "assistant"} />
+  <LiveMessageView {live} {tools} {visibleToolCalls} {instanceId} showHeader={roleOf(rows.at(-1)) !== "assistant"} />
   {#if streaming}
     <div class="streaming-dots" role="status" aria-label="生成中">
       <span></span><span></span><span></span>

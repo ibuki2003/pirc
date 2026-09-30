@@ -1,0 +1,13 @@
+<script lang="ts">
+  import ToolPatchSummary from "./PatchSummary.svelte";
+  import type { ToolViewProps } from "./types";
+  let { calls, changes, failed, open, status, output, error }: ToolViewProps = $props();
+</script>
+<details class="tool" class:tool-error={failed} ontoggle={e => { if (e.currentTarget.open) open(); }}>
+  <summary><span class="tool-name">apply_patch</span><ToolPatchSummary changes={changes[0]} />{@render status()}</summary>
+  {#each calls as call, i (call.id)}
+    {#if typeof call.arguments?.patch === "string"}<pre>{call.arguments.patch}</pre>{/if}
+    {@render output(i)}
+  {/each}
+  {@render error()}
+</details>

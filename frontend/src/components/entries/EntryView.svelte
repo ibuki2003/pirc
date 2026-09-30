@@ -1,10 +1,10 @@
 <script lang="ts">
   import "./EntryView.scss";
-  import "./ToolCallView.scss";
+  import "./tools/Tool.scss";
   import type { ProjectedAssistantEntry, ProjectedEntry, ToolProgress } from "@pirc/api";
   import { markdown } from "../../lib/markdown.ts";
   import BlobImage from "./BlobImage.svelte";
-  import ToolCallView from "./ToolCallView.svelte";
+  import HistoryToolView from "./tools/HistoryToolView.svelte";
   type Call = Extract<ProjectedAssistantEntry["message"]["content"][number], { type: "toolCall" }>;
   let { item, results, instanceId, expand, tools, showHeader = true }: {
     item: ProjectedEntry; results: ProjectedEntry[]; instanceId: string; expand: (id: string) => Promise<void>;
@@ -65,7 +65,7 @@
             <BlobImage {instanceId} entryId={entry.id} path={["message", "content", index, "data"]} />
           {:else if block.type === "toolCall"}
             {#if block.name !== "read" || !readAt(entry.message.content, index - 1)}
-              <ToolCallView calls={block.name === "read" ? readCalls(entry.message.content, index) : [block]}
+              <HistoryToolView calls={block.name === "read" ? readCalls(entry.message.content, index) : [block]}
                 {results} {instanceId} entryId={entry.id} {expand} {tools} />
             {/if}
           {/if}
