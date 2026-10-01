@@ -11,7 +11,7 @@ Node 22.19 以降、Deno 2.x、pnpm が必要です。まずリポジトリ直�
 
 ## pi-extension のインストール
 
-リポジトリ直下で `pi install "$(pwd)/pi-extension"` を実行します。pi 起動時に `PIRC_URL=ws://localhost:8787/api/host` を設定してください。一時的に使う場合は `PIRC_URL=ws://localhost:8787/api/host pi -e ./pi-extension/src/index.ts` でも起動できます。
+`pi install git:github.com/ibuki2003/pirc` を実行します。ローカルの作業ツリーから導入する場合は、リポジトリ直下で `pi install "$(pwd)/pi-extension"` を実行します。接続先の既定値は `ws://localhost:8787` です。変更する場合は `~/.pi/agent/pirc.json` に `{"host":"wss://example.com"}` を保存してください（pi の agent directory を変更している場合はそのディレクトリ）。一時的に使う場合は `pi -e ./pi-extension/src/index.ts` でも起動できます。
 
 ## backend
 

@@ -1,6 +1,7 @@
 {
   "name": "pirc",
   "private": true,
+  "pi": { "extensions": ["./pi-extension/src/index.ts"] },
   "scripts": {
     "dev": "deno task --config server/deno.json dev & pnpm -F frontend dev",
     "check": "pnpm -r check && deno task --config server/deno.json check",
