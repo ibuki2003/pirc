@@ -67,6 +67,7 @@ export function controls(pi: ExtensionAPI, ctx: ExtensionContext, notice: (reque
         if (!(await stat(directory)).isDirectory()) return [];
         const { stdout } = await execFileAsync("fd", [
           glob ? "--glob" : "--fixed-strings", "--ignore-case", "--no-require-git",
+          ...(glob && part.includes("/") ? ["--full-path"] : []),
           ...(part.startsWith(".") || base.includes("/.") ? ["--hidden"] : []),
           "--exclude", ".git",
           "--type", "f", "--type", "d", "--max-results", "200",
