@@ -94,6 +94,8 @@ export function projectEntry(item: ProjectedEntry, _options: StreamOptions): Pro
       role: "toolResult",
       toolCallId: message.toolCallId,
       toolName: message.toolName,
+      messageTimestamp: message.timestamp,
+      ...(message.usage ? { usage: message.usage } : {}),
       ...(["bash", "edit", "write"].includes(message.toolName) ? { isError: message.isError } : {}),
     };
     return { index: item.index, entry: redacted };
@@ -110,6 +112,10 @@ export function projectEntry(item: ProjectedEntry, _options: StreamOptions): Pro
         timestamp: entry.timestamp,
         role: "bashExecution",
         command: head(message.command, BASH_COMMAND_BYTES),
+        messageTimestamp: message.timestamp,
+        exitCode: message.exitCode,
+        cancelled: message.cancelled,
+        truncated: message.truncated,
         isError: message.cancelled || (message.exitCode !== undefined && message.exitCode !== 0),
       },
     };

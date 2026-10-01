@@ -18,7 +18,7 @@ function entry(message: unknown): ProjectedEntry {
 Deno.test("tool result redaction never leaks content or details", () => {
   for (const toolName of ["read", "bash", "edit", "write", "other"]) {
     const original = entry({
-      role: "toolResult", toolCallId: "t", toolName, isError: false,
+      role: "toolResult", toolCallId: "t", toolName, isError: false, timestamp: 123,
       content: [{ type: "text", text: "secret" }],
       details: { truncation: { content: "secret" } },
     });
@@ -26,12 +26,30 @@ Deno.test("tool result redaction never leaks content or details", () => {
     assertEquals(projected.entry, {
       type: "redacted", redacted: true, id: "e", parentId: null, timestamp: "",
       originalBytes: new TextEncoder().encode(JSON.stringify(original.entry)).length,
-      role: "toolResult", toolCallId: "t", toolName,
+      role: "toolResult", toolCallId: "t", toolName, messageTimestamp: 123,
       ...(["bash", "edit", "write"].includes(toolName) ? { isError: false } : {}),
     });
     assertEquals(JSON.stringify(projected).includes("secret"), false);
     assertEquals(JSON.stringify(original).includes("secret"), true);
   }
+});
+
+Deno.test("redacted results retain usage and bash completion metadata", () => {
+  const usage = { input: 1, output: 2, cacheRead: 0, cacheWrite: 0, totalTokens: 3,
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } };
+  const tool = projectEntry(entry({
+    role: "toolResult", toolCallId: "t", toolName: "read", isError: false,
+    content: [], timestamp: 123, usage,
+  }), MOBILE_STREAM).entry;
+  if (tool.type !== "redacted") throw new Error("Expected redacted result");
+  assertEquals(tool.usage, usage);
+  assertEquals(tool.messageTimestamp, 123);
+  const bash = projectEntry(entry({
+    role: "bashExecution", command: "false", output: "secret", timestamp: 456,
+    exitCode: 1, cancelled: false, truncated: true,
+  }), MOBILE_STREAM).entry;
+  if (bash.type !== "redacted") throw new Error("Expected redacted execution");
+  assertEquals([bash.messageTimestamp, bash.exitCode, bash.cancelled, bash.truncated], [456, 1, false, true]);
 });
 
 Deno.test("tool calls are redacted per block, keeping assistant text and thinking", () => {

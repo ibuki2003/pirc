@@ -31,6 +31,11 @@ export interface RedactedEntry {
   toolName?: string;
   isError?: boolean;
   command?: string;
+  messageTimestamp?: number;
+  usage?: import("./pi.ts").Usage;
+  exitCode?: number;
+  cancelled?: boolean;
+  truncated?: boolean;
 }
 export interface ProjectedEntry {
   index: number;

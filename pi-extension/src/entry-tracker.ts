@@ -1,5 +1,6 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { OpInput, ProjectedEntry } from "../../api/src/index.ts";
+import { serializeEntry } from "./serialize-entry.ts";
 
 export class EntryTracker {
   private cursor: number;
@@ -20,7 +21,7 @@ export class EntryTracker {
     }
     let appended: string | undefined;
     if (entries.length > this.cursor) {
-      const items: ProjectedEntry[] = entries.slice(this.cursor).map((entry, offset) => ({ index: this.cursor + offset, entry }));
+      const items: ProjectedEntry[] = entries.slice(this.cursor).map((entry, offset) => ({ index: this.cursor + offset, entry: serializeEntry(entry) }));
       this.push({ op: "append", target: "entries", from: this.cursor, items });
       appended = items.at(-1)?.entry.id;
       this.cursor = entries.length;
@@ -36,13 +37,13 @@ export class EntryTracker {
     const branch = this.ctx.sessionManager.getBranch(leafId);
     const start = Math.max(0, branch.length - limit);
     const indices = new Map(all.map((entry, index) => [entry.id, index]));
-    return { entries: branch.slice(start).map(entry => ({ index: indices.get(entry.id)!, entry })), hasMoreBefore: start > 0 };
+    return { entries: branch.slice(start).map(entry => ({ index: indices.get(entry.id)!, entry: serializeEntry(entry) })), hasMoreBefore: start > 0 };
   }
   snapshot(since: number | undefined, branchLimit: number): Pick<import("../../api/src/index.ts").SessionSnapshot, "entryCount" | "lastEntryId" | "leafId" | "entries" | "hasMoreBefore" | "mode"> {
     const all = this.ctx.sessionManager.getEntries();
     const delta = since !== undefined && since >= 0 && since <= all.length;
     const selected = delta
-      ? all.slice(since).map((entry, offset) => ({ index: since + offset, entry }))
+      ? all.slice(since).map((entry, offset) => ({ index: since + offset, entry: serializeEntry(entry) }))
       : this.branchForSnapshot(branchLimit, all);
     return {
       entryCount: all.length, lastEntryId: all.at(-1)?.id ?? null,
@@ -53,12 +54,12 @@ export class EntryTracker {
   }
   private branchForSnapshot(limit: number, all: ReturnType<ExtensionContext["sessionManager"]["getEntries"]>): ProjectedEntry[] {
     const indices = new Map(all.map((entry, index) => [entry.id, index]));
-    return this.ctx.sessionManager.getBranch().slice(-limit).map(entry => ({ index: indices.get(entry.id)!, entry }));
+    return this.ctx.sessionManager.getBranch().slice(-limit).map(entry => ({ index: indices.get(entry.id)!, entry: serializeEntry(entry) }));
   }
   entry(id: string): { index: number; entry: import("../../api/src/index.ts").SessionEntry } {
     const all = this.ctx.sessionManager.getEntries();
     const index = all.findIndex(e => e.id === id);
     if (index < 0) throw new Error("Entry not found");
-    return { index, entry: all[index] };
+    return { index, entry: serializeEntry(all[index]) };
   }
 }
