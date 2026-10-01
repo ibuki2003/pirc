@@ -70,6 +70,10 @@ export default function (pi: ExtensionAPI): void {
   pi.on("ui_prompt_end", () => bridge?.state.setPrompt());
   pi.registerCommand("pirc", {
     description: "Show or toggle pirc connection",
+    getArgumentCompletions: prefix => {
+      const matches = ["pause", "resume"].filter(command => command.startsWith(prefix));
+      return matches.length > 0 ? matches.map(command => ({ value: command, label: command })) : null;
+    },
     handler: async (args, ctx) => {
       if (args.trim() === "pause") { paused = true; bridge?.stop({ type: "session_shutdown", reason: "quit" }); bridge = undefined; }
       else if (args.trim() === "resume") {
