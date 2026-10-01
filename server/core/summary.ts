@@ -12,6 +12,7 @@ export function initialSummary(
     sessionId: state.sessionId,
     cwd: state.cwd,
     name: state.name,
+    messagePreview: state.messagePreview,
     model: state.model,
     status: state.status,
     connectedAt: now,
@@ -31,24 +32,13 @@ export function updateSummary(
         hostname: s.hostname,
         cwd: s.cwd,
         name: s.name,
+        messagePreview: s.messagePreview,
         model: s.model,
         status: s.status,
       });
     }
     if (op.op === "append" && op.target === "entries") {
       next.entryCount = op.from + op.items.length;
-      for (const item of op.items) {
-        if (
-          item.entry.type !== "message" || item.entry.message.role !== "user"
-        ) continue;
-        const content = item.entry.message.content;
-        const text = typeof content === "string"
-          ? content
-          : content.filter((b) => b.type === "text").map((b) => b.text).join(
-            " ",
-          );
-        next.lastUserText = text.slice(0, 120);
-      }
     }
   }
   return next;

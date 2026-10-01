@@ -16,6 +16,7 @@ export interface SessionState {
   sessionFile?: string;
   cwd: string;
   name?: string;
+  messagePreview?: { role: "user" | "assistant"; text: string };
   model?: ModelRef;
   thinkingLevel?: ThinkingLevel;
   availableThinkingLevels: ThinkingLevel[];
@@ -27,11 +28,10 @@ export interface SessionState {
   };
   contextUsage?: { tokens: number | null; contextWindow: number; percent: number | null };
 }
-export interface SessionSummary extends Pick<SessionState, "instanceId" | "hostId" | "hostname" | "sessionId" | "cwd" | "name" | "model" | "status"> {
+export interface SessionSummary extends Pick<SessionState, "instanceId" | "hostId" | "hostname" | "sessionId" | "cwd" | "name" | "model" | "status" | "messagePreview"> {
   connectedAt: string;
   lastActivityAt: string;
   entryCount: number;
-  lastUserText?: string;
 }
 export interface Notice {
   level: "info" | "warning" | "error";

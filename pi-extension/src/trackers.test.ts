@@ -1,9 +1,33 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ExtensionContext, MessageStartEvent, MessageUpdateEvent, ToolExecutionStartEvent, ToolExecutionUpdateEvent, ToolExecutionEndEvent } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext, MessageStartEvent, MessageUpdateEvent, ToolExecutionStartEvent, ToolExecutionUpdateEvent, ToolExecutionEndEvent } from "@earendil-works/pi-coding-agent";
 import type { OpInput, SyncOp } from "../../api/src/index.ts";
 import { EntryTracker } from "./entry-tracker.ts";
 import { LiveTracker } from "./live-tracker.ts";
 import { Outbox } from "./outbox.ts";
+import { StateTracker } from "./state-tracker.ts";
+
+describe("StateTracker preview", () => {
+  it("reads the last user or assistant on the active branch and updates after navigation", () => {
+    const user = { type: "message", message: { role: "user", content: "質問\nです" } };
+    const assistant = { type: "message", message: { role: "assistant", content: [
+      { type: "thinking", thinking: "hidden" }, { type: "text", text: "回答" },
+    ] } };
+    let branch = [user, assistant, { type: "message", message: { role: "toolResult", content: "tool" } }];
+    const ctx = {
+      cwd: "/repo", getContextUsage: () => undefined, isIdle: () => true, hasPendingMessages: () => false,
+      sessionManager: { getBranch: () => branch, getSessionId: () => "s", getSessionFile: () => undefined },
+    } as unknown as ExtensionContext;
+    const pi = { getSessionName: () => undefined, getThinkingLevel: () => "off" } as unknown as ExtensionAPI;
+    const ops: OpInput[] = [];
+    const tracker = new StateTracker(pi, ctx, { instanceId: "i", hostId: "h", hostname: "host", piVersion: "" }, op => ops.push(op));
+    expect(tracker.get().messagePreview).toEqual({ role: "assistant", text: "回答" });
+    branch = [user];
+    tracker.diff();
+    expect(ops[0]).toMatchObject({ target: "state", value: { messagePreview: { role: "user", text: "質問 です" } } });
+    branch = [];
+    expect(tracker.get().messagePreview).toBeUndefined();
+  });
+});
 
 describe("Outbox", () => {
   it("coalesces adjacent live deltas and retains a continuous sequence", () => {

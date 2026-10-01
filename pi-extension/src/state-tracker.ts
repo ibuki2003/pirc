@@ -17,10 +17,20 @@ export class StateTracker {
   get(): SessionState {
     const model = this.ctx.model;
     const usage = this.ctx.getContextUsage();
+    const entry = this.ctx.sessionManager.getBranch().slice().reverse().find(entry =>
+      entry.type === "message" && (entry.message.role === "user" || entry.message.role === "assistant"));
+    let messagePreview: SessionState["messagePreview"];
+    if (entry?.type === "message" && (entry.message.role === "user" || entry.message.role === "assistant")) {
+      const content = entry.message.content;
+      const text = typeof content === "string" ? content
+        : content.filter(block => block.type === "text").map(block => block.text).join(" ");
+      messagePreview = { role: entry.message.role, text: text.replace(/\s+/g, " ").trim().slice(0, 200) };
+    }
     return {
       ...this.identity, sessionId: this.ctx.sessionManager.getSessionId(),
       sessionFile: this.ctx.sessionManager.getSessionFile(), cwd: this.ctx.cwd,
       name: this.pi.getSessionName(), model: model && modelRef(model),
+      messagePreview,
       thinkingLevel: this.pi.getThinkingLevel(),
       availableThinkingLevels: model ? getSupportedThinkingLevels(model) as ThinkingLevel[] : LEVELS,
       status: { streaming: !this.ctx.isIdle(), compacting: this.compacting, pendingMessages: this.ctx.hasPendingMessages(), uiPrompt: this.uiPrompt },
