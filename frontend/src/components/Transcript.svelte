@@ -4,8 +4,9 @@
   import EntryView from "./entries/EntryView.svelte";
   import LiveMessageView from "./LiveMessage.svelte";
   import Button from "@smui/button";
-  let { entries, instanceId, expand, loadMore, hasMore, live, tools, toolDurations, streaming }: {
+  let { entries, instanceId, expand, subscribeTool = () => {}, loadMore, hasMore, live, tools, toolDurations, streaming }: {
     entries: ProjectedEntry[]; instanceId: string; expand: (id: string) => Promise<void>;
+    subscribeTool?: (ids: string[], expanded: boolean) => void;
     loadMore: () => Promise<void>; hasMore: boolean;
     live: LiveMessage | null; tools: Map<string, ToolProgress>; streaming: boolean;
     toolDurations: Map<string, number>;
@@ -55,11 +56,11 @@
         {:else}thinking: {row.thinking}{/if}
       </small>
     {:else}
-      <EntryView item={row.item} results={entries} {instanceId} {expand} {tools} {toolDurations}
+      <EntryView item={row.item} results={entries} {instanceId} {expand} {subscribeTool} {tools} {toolDurations}
         showHeader={roleOf(row) === undefined || roleOf(row) !== roleOf(rows[index - 1])} />
     {/if}
   {/each}
-  <LiveMessageView {live} {tools} {visibleToolCalls} {instanceId} showHeader={roleOf(rows.at(-1)) !== "assistant"} />
+  <LiveMessageView {live} {tools} {visibleToolCalls} {instanceId} {subscribeTool} showHeader={roleOf(rows.at(-1)) !== "assistant"} />
   {#if streaming}
     <div class="streaming-dots" role="status" aria-label="生成中">
       <span></span><span></span><span></span>

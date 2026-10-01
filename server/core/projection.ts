@@ -131,14 +131,15 @@ export function projectEntry(item: ProjectedEntry, _options: StreamOptions): Pro
   };
 }
 
-export function projectTool(value: ToolProgress, options: StreamOptions): ToolProgress {
-  return { ...value, output: tail(value.output, options.toolOutputBytes),
+export function projectTool(value: ToolProgress, options: StreamOptions, id?: string): ToolProgress {
+  const output = id && options.expandedToolCalls?.includes(id) ? value.output : tail(value.output, options.toolOutputBytes);
+  return { ...value, output, truncatedHead: value.totalBytes > encoder.encode(output).length,
     ...(value.command !== undefined ? { command: head(value.command, BASH_COMMAND_BYTES) } : {}) };
 }
 
-function projectLiveBlock(value: LiveBlock): LiveBlock {
+function projectLiveBlock(value: LiveBlock, options: StreamOptions): LiveBlock {
   return value.type === "toolCall"
-    ? redactedCall(value) as LiveBlock
+    ? options.expandedToolCalls?.includes(value.id) ? value : redactedCall(value) as LiveBlock
     : value;
 }
 
@@ -151,15 +152,15 @@ export function projectOp(op: SyncOp, options: StreamOptions): SyncOp {
       ...op,
       value: op.value && {
         ...op.value,
-        content: op.value.content.map(projectLiveBlock),
+        content: op.value.content.map((block) => projectLiveBlock(block, options)),
       },
     };
   }
   if (op.op === "set" && op.target === "live.content") {
-    return { ...op, value: projectLiveBlock(op.value) };
+    return { ...op, value: projectLiveBlock(op.value, options) };
   }
   if (op.op === "set" && op.target === "tool") {
-    return { ...op, value: op.value && projectTool(op.value, options) };
+    return { ...op, value: op.value && projectTool(op.value, options, op.key) };
   }
   return op;
 }
@@ -174,10 +175,10 @@ export function projectSnapshot(snapshot: SessionSnapshot, options: StreamOption
     entries: snapshot.entries.map((item) => projectEntry(item, options)),
     live: snapshot.live && {
       ...snapshot.live,
-      content: snapshot.live.content.map(projectLiveBlock),
+      content: snapshot.live.content.map((block) => projectLiveBlock(block, options)),
     },
     tools: Object.fromEntries(
-      Object.entries(snapshot.tools).map(([id, tool]) => [id, projectTool(tool, options)]),
+      Object.entries(snapshot.tools).map(([id, tool]) => [id, projectTool(tool, options, id)]),
     ),
   };
 }
@@ -187,5 +188,8 @@ export function streamKey(options: StreamOptions): string {
 }
 
 export function validStream(value: StreamOptions): boolean {
-  return Number.isSafeInteger(value?.toolOutputBytes) && value.toolOutputBytes >= 0;
+  return Number.isSafeInteger(value?.toolOutputBytes) && value.toolOutputBytes >= 0 &&
+    (value.expandedToolCalls === undefined ||
+      (Array.isArray(value.expandedToolCalls) && value.expandedToolCalls.length <= 32 &&
+        value.expandedToolCalls.every(id => typeof id === "string" && id.length <= 256)));
 }

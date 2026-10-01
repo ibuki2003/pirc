@@ -184,6 +184,7 @@
   {#if store.mirror}
     <div class="scroll" bind:this={scrollElement} onscroll={trackScroll}>
       <Transcript entries={store.branch} {instanceId} expand={id => store.expandEntry(id)}
+        subscribeTool={(ids, expanded) => store.setToolExpanded(ids, expanded)}
         loadMore={() => store.loadAncestors()} hasMore={store.mirror.hasMoreBefore}
         live={store.mirror.live} tools={store.mirror.tools} toolDurations={store.mirror.toolDurations} streaming={store.mirror.state.status.streaming} />
     </div>

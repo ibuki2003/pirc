@@ -152,4 +152,9 @@ export class MirrorStore {
     await connection.peer?.request("session.setStreamOptions", { instanceId: this.instanceId, stream });
     this.scheduleSync();
   }
+  setToolExpanded(ids: string[], expanded: boolean): void {
+    const current = new Set(this.stream.expandedToolCalls ?? []);
+    for (const id of ids) expanded ? current.add(id) : current.delete(id);
+    void this.setStream({ ...this.stream, expandedToolCalls: [...current] });
+  }
 }

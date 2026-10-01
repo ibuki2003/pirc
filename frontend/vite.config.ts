@@ -10,13 +10,13 @@ export default defineConfig({
     projects: [
       {
         extends: true,
-        test: { name: "unit", exclude: ["**/node_modules/**", "src/routes/GodMode.test.ts"] },
+        test: { name: "unit", exclude: ["**/node_modules/**", "src/routes/GodMode.test.ts", "src/components/entries/tools/ToolCallView.test.ts"] },
       },
       {
         extends: true,
         resolve: { conditions: ["browser"] },
         ssr: { resolve: { conditions: ["browser"] } },
-        test: { name: "ui", include: ["src/routes/GodMode.test.ts"], environment: "jsdom" },
+        test: { name: "ui", include: ["src/routes/GodMode.test.ts", "src/components/entries/tools/ToolCallView.test.ts"], environment: "jsdom" },
       },
     ],
   },

@@ -1,9 +1,9 @@
 <script lang="ts">
   import ToolArguments from "./ToolArguments.svelte";
   import type { ToolViewProps } from "./types";
-  let { calls, failed, open, status, output, error }: ToolViewProps = $props();
+  let { calls, failed, toggle, status, output, error }: ToolViewProps = $props();
 </script>
-<details class="tool" class:tool-error={failed} ontoggle={e => { if (e.currentTarget.open) open(); }}>
+<details class="tool" class:tool-error={failed} ontoggle={e => toggle(e.currentTarget.open)}>
   <summary><span class="tool-name tool-preview">{calls[0].name}</span>{@render status()}</summary>
   {#each calls as call, i (call.id)}
     <ToolArguments args={call.arguments} />

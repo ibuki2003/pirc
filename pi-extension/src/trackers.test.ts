@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ExtensionContext, MessageStartEvent, MessageUpdateEvent, ToolExecutionStartEvent, ToolExecutionEndEvent } from "@earendil-works/pi-coding-agent";
+import type { ExtensionContext, MessageStartEvent, MessageUpdateEvent, ToolExecutionStartEvent, ToolExecutionUpdateEvent, ToolExecutionEndEvent } from "@earendil-works/pi-coding-agent";
 import type { OpInput, SyncOp } from "../../api/src/index.ts";
 import { EntryTracker } from "./entry-tracker.ts";
 import { LiveTracker } from "./live-tracker.ts";
@@ -50,6 +50,15 @@ describe("EntryTracker", () => {
 });
 
 describe("LiveTracker", () => {
+  it("retains running output beyond the mobile projection limit for expanded viewers", () => {
+    const tracker = new LiveTracker(() => {});
+    tracker.toolStart({ toolCallId: "bash", toolName: "bash", args: {} } as ToolExecutionStartEvent);
+    const output = "output\n".repeat(3000);
+    tracker.toolUpdate({ toolCallId: "bash", partialResult: { content: [{ type: "text", text: output }] } } as ToolExecutionUpdateEvent);
+    expect(tracker.snapshot().tools.bash).toMatchObject({
+      output, totalBytes: Buffer.byteLength(output), truncatedHead: false,
+    });
+  });
   it("publishes bash duration once at completion and retains it independently of progress", () => {
     vi.useFakeTimers();
     try {

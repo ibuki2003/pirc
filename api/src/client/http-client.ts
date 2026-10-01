@@ -7,7 +7,7 @@ import type { SessionEntry } from "../pi.ts";
 
 function params(stream?: StreamOptions): URLSearchParams {
   const query = new URLSearchParams();
-  if (stream) for (const [key, value] of Object.entries(stream)) query.set(key, String(value));
+  if (stream) for (const [key, value] of Object.entries(stream)) query.set(key, Array.isArray(value) ? JSON.stringify(value) : String(value));
   return query;
 }
 export class HttpClient {

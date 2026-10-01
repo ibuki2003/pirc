@@ -4,12 +4,13 @@
   import type { ToolDisplay } from "./types";
 
   type Call = Extract<ProjectedAssistantEntry["message"]["content"][number], { type: "toolCall" }>;
-  let { calls, results, instanceId, entryId, expand, tools, toolDurations }: {
+  let { calls, results, instanceId, entryId, expand, subscribeTool = () => {}, tools, toolDurations }: {
     calls: Call[];
     results: ProjectedEntry[];
     instanceId: string;
     entryId: string;
     expand: (id: string) => Promise<void>;
+    subscribeTool?: (ids: string[], expanded: boolean) => void;
     tools: Map<string, ToolProgress>;
     toolDurations: Map<string, number>;
   } = $props();
@@ -47,4 +48,4 @@
     for (const result of toolResults.flat()) if (result.entry.type === "redacted") void load(result.entry.id);
   }
 </script>
-<ToolCallView {display} {instanceId} onopen={open} />
+<ToolCallView {display} {instanceId} onopen={open} {subscribeTool} />

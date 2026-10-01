@@ -32,6 +32,7 @@ function stream(query: URLSearchParams): StreamOptions {
       query.get("toolOutputBytes"),
       base.toolOutputBytes,
     ),
+    ...(query.has("expandedToolCalls") ? { expandedToolCalls: JSON.parse(query.get("expandedToolCalls")!) } : {}),
   };
   if (!validStream(options)) throw new Error("Invalid stream");
   return options;

@@ -20,7 +20,7 @@ export interface ToolViewProps {
   calls: ToolDisplayCall[];
   changes: (RedactedToolCall["changes"] | undefined)[];
   failed: boolean;
-  open: () => void;
+  toggle: (open: boolean) => void;
   status: Snippet;
   output: Snippet<[number]>;
   error: Snippet;

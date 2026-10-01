@@ -74,8 +74,7 @@ export class LiveTracker {
     const output = typeof event.partialResult?.content === "string" ? event.partialResult.content :
       Array.isArray(event.partialResult?.content) ? event.partialResult.content.filter((b: { type: string }) => b.type === "text").map((b: { text: string }) => b.text).join("\n") : "";
     const bytes = Buffer.byteLength(output);
-    const tail = Buffer.from(output).subarray(Math.max(0, bytes - 16384)).toString("utf8");
-    const value = { ...previous, output: tail, totalBytes: bytes, truncatedHead: bytes > 16384 };
+    const value = { ...previous, output, totalBytes: bytes, truncatedHead: false };
     this.tools.set(event.toolCallId, value);
     const now = Date.now();
     if (now - (this.lastToolUpdate.get(event.toolCallId) ?? 0) >= 250) {

@@ -9,10 +9,11 @@
   import GenericTool from "./GenericTool.svelte";
   import type { ToolDisplay } from "./types";
 
-  let { display, instanceId, onopen = () => {} }: {
+  let { display, instanceId, onopen = () => {}, subscribeTool = () => {} }: {
     display: ToolDisplay;
     instanceId: string;
     onopen?: () => void;
+    subscribeTool?: (ids: string[], expanded: boolean) => void;
   } = $props();
   const name = $derived(display.calls[0].name);
   const View = $derived(name === "read" ? ReadTool : name === "edit" ? EditTool :
@@ -20,11 +21,21 @@
   const changes = $derived(display.calls.map(call => call.changes));
   const running = $derived(display.calls.some(call => call.progress !== undefined));
   const size = (value: number) => value >= 1024 ? `${Math.round(value / 1024)}K` : `${value}B`;
+  let expanded = false;
+  function toggle(open: boolean) {
+    if (expanded === open) return;
+    expanded = open;
+    subscribeTool(display.calls.map(call => call.id), open);
+    if (open) onopen();
+  }
+  $effect(() => () => {
+    if (expanded) subscribeTool(display.calls.map(call => call.id), false);
+  });
 </script>
 {#snippet errorNotice()}
   {#if display.error}<small role="alert">{display.error}</small>{/if}
 {/snippet}
-<View calls={display.calls} {changes} failed={display.failed} open={onopen} error={errorNotice}>
+<View calls={display.calls} {changes} failed={display.failed} toggle={toggle} error={errorNotice}>
   {#snippet status()}
     {#if display.bytes}<span class="tool-size">({size(display.bytes)})</span>{/if}
     {#if running}<small class="muted-meta live-status">実行中</small>{/if}
