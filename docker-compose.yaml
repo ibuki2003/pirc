@@ -1,0 +1,63 @@
+services:
+  server:
+    image: denoland/deno
+    working_dir: /app/server
+    command: deno task start
+    restart: unless-stopped
+    environment:
+      PIRC_PORT: 8787
+      PIRC_STATIC_DIR: /frontend/dist
+      #PIRC_ALLOWED_ORIGINS: ""
+      DENO_DIR: /deno_cache
+    ports:
+      - 8787:8787
+    volumes:
+      - ./server:/app/server:ro
+      - ./api:/app/api:ro
+      - deno_cache:/deno_cache
+      - frontend_dist:/frontend/dist:ro
+    depends_on:
+      frontend-build:
+        condition: service_completed_successfully
+
+  frontend-build:
+    image: node:24-alpine
+    working_dir: /app
+    command: sh -c "corepack enable && pnpm install --frozen-lockfile && pnpm -F frontend prepare && pnpm -F frontend build"
+    volumes:
+      - ./package.json:/app/package.json:ro
+      - ./pnpm-lock.yaml:/app/pnpm-lock.yaml:ro
+      - ./pnpm-workspace.yaml:/app/pnpm-workspace.yaml:ro
+      - ./api:/app/api:ro
+      - ./frontend:/app/frontend
+      - ./pi-extension:/app/pi-extension:ro
+      - node_modules:/app/node_modules
+      - api_node_modules:/app/api/node_modules
+      - frontend_node_modules:/app/frontend/node_modules
+      - extension_node_modules:/app/pi-extension/node_modules
+      - frontend_dist:/app/frontend/dist
+
+  notifier:
+    image: denoland/deno
+    working_dir: /app/notifier
+    command: deno task start
+    restart: unless-stopped
+    environment:
+      PIRC_SERVER_URL: ws://server:8787/api/notify
+      NTFY_TOPIC: ${NTFY_TOPIC}
+      DENO_DIR: /deno_cache
+    volumes:
+      - ./notifier:/app/notifier:ro
+      - ./api:/app/api:ro
+      - deno_cache:/deno_cache
+    depends_on:
+      server:
+        condition: service_started
+
+volumes:
+  deno_cache:
+  node_modules:
+  api_node_modules:
+  frontend_node_modules:
+  extension_node_modules:
+  frontend_dist:
