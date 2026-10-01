@@ -23,14 +23,18 @@ services:
   frontend-build:
     image: node:24-alpine
     working_dir: /app
-    command: sh -c "corepack enable && pnpm install --frozen-lockfile && pnpm -F frontend prepare && pnpm -F frontend build"
+    command: |
+      sh -c "
+        corepack enable &&
+        pnpm install --frozen-lockfile --store-dir=/pnpm/store &&
+        pnpm -F frontend prepare &&
+        pnpm -F frontend build
+      "
+    environment:
+      CI: "true"
     volumes:
-      - ./package.json:/app/package.json:ro
-      - ./pnpm-lock.yaml:/app/pnpm-lock.yaml:ro
-      - ./pnpm-workspace.yaml:/app/pnpm-workspace.yaml:ro
-      - ./api:/app/api:ro
-      - ./frontend:/app/frontend
-      - ./pi-extension:/app/pi-extension:ro
+      - .:/app
+      - pnpm_store:/pnpm/store
       - node_modules:/app/node_modules
       - api_node_modules:/app/api/node_modules
       - frontend_node_modules:/app/frontend/node_modules
@@ -61,3 +65,4 @@ volumes:
   frontend_node_modules:
   extension_node_modules:
   frontend_dist:
+  pnpm_store:

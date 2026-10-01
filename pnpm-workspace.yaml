@@ -3,6 +3,8 @@ packages:
   - frontend
   - pi-extension
 allowBuilds:
-  '@google/genai': set this to true or false
+  '@google/genai': false
+  '@parcel/watcher': false
   esbuild: true
-  protobufjs: set this to true or false
+  protobufjs: false
+
