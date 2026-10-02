@@ -7,23 +7,39 @@ import { Outbox } from "./outbox.ts";
 import { StateTracker } from "./state-tracker.ts";
 
 describe("StateTracker preview", () => {
-  it("reads the last user or assistant on the active branch and updates after navigation", () => {
+  it("selects the latest user while running and latest assistant while idle on the active branch", () => {
     const user = { type: "message", message: { role: "user", content: "質問\nです" } };
     const assistant = { type: "message", message: { role: "assistant", content: [
       { type: "thinking", thinking: "hidden" }, { type: "text", text: "回答" },
     ] } };
-    let branch = [user, assistant, { type: "message", message: { role: "toolResult", content: "tool" } }];
+    const latestUser = { type: "message", message: { role: "user", content: "次の質問" } };
+    const latestAssistant = { type: "message", message: { role: "assistant", content: "途中の回答" } };
+    let branch = [user, assistant, latestUser, latestAssistant, { type: "message", message: { role: "toolResult", content: "tool" } }];
+    let idle = false;
     const ctx = {
-      cwd: "/repo", getContextUsage: () => undefined, isIdle: () => true, hasPendingMessages: () => false,
+      cwd: "/repo", getContextUsage: () => undefined, isIdle: () => idle, hasPendingMessages: () => false,
       sessionManager: { getBranch: () => branch, getSessionId: () => "s", getSessionFile: () => undefined },
     } as unknown as ExtensionContext;
     const pi = { getSessionName: () => undefined, getThinkingLevel: () => "off" } as unknown as ExtensionAPI;
     const ops: OpInput[] = [];
     const tracker = new StateTracker(pi, ctx, { instanceId: "i", hostId: "h", hostname: "host", piVersion: "" }, op => ops.push(op));
+    expect(tracker.get().messagePreview).toEqual({ role: "user", text: "次の質問" });
+    idle = true;
+    tracker.diff();
+    expect(ops[0]).toMatchObject({ target: "state", value: {
+      status: { streaming: false }, messagePreview: { role: "assistant", text: "途中の回答" },
+    } });
+    branch = [user, assistant];
     expect(tracker.get().messagePreview).toEqual({ role: "assistant", text: "回答" });
     branch = [user];
+    expect(tracker.get().messagePreview).toBeUndefined();
+    idle = false;
     tracker.diff();
-    expect(ops[0]).toMatchObject({ target: "state", value: { messagePreview: { role: "user", text: "質問 です" } } });
+    expect(ops[1]).toMatchObject({ target: "state", value: {
+      status: { streaming: true }, messagePreview: { role: "user", text: "質問 です" },
+    } });
+    branch = [assistant];
+    expect(tracker.get().messagePreview).toBeUndefined();
     branch = [];
     expect(tracker.get().messagePreview).toBeUndefined();
   });
