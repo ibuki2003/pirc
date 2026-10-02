@@ -6,6 +6,16 @@
   border-left: 3px solid #8894a9;
   margin: .5rem 0;
 
+  .entry-timestamp {
+    visibility: hidden;
+    font-size: .75rem;
+    font-weight: normal;
+    opacity: .6;
+  }
+  > .entry-timestamp { display: block; }
+  > header > .entry-timestamp { margin-left: .5rem; }
+  &:hover .entry-timestamp { visibility: visible; }
+
   &.assistant { border-left-color: transparent; }
   &.user { border-left-color: #355da9; }
   &.system { border-left-color: #087566; }

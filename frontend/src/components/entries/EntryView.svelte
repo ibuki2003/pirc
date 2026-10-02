@@ -14,6 +14,14 @@
     showHeader?: boolean;
   } = $props();
   let entry = $derived(item.entry);
+  let timestamp = $derived.by(() => {
+    const date = new Date(entry.timestamp);
+    const pad = (value: number) => String(value).padStart(2, "0");
+    const time = `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+    return Date.now() - date.getTime() < 24 * 60 * 60 * 1000
+      ? time
+      : `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${time}`;
+  });
   let error = $state("");
   let bashOpen = $state(false);
   async function load(id: string) {
@@ -36,6 +44,14 @@
   class:assistant={entry.type === "message" && entry.message.role === "assistant"}
   class:user={entry.type === "message" && entry.message.role === "user"}
   class:system={entry.type === "message" && entry.message.role === "system"}>
+  {#if showHeader && entry.type === "message" && entry.message.role !== "toolResult"}
+    <header>
+      {entry.message.role === "assistant" ? "assistant" : entry.message.role === "user" ? "you" : entry.message.role}
+      <small class="entry-timestamp">{timestamp}</small>
+    </header>
+  {:else}
+    <small class="entry-timestamp">{timestamp}</small>
+  {/if}
   {#if entry.type === "redacted"}
     {#if entry.role === "bashExecution"}
       <details class="tool" class:tool-error={entry.isError} open={bashOpen} ontoggle={e => {
@@ -50,7 +66,6 @@
     {#if entry.message.role === "toolResult"}
       <!-- Tool results are displayed with their matching tool call. -->
     {:else}
-      {#if showHeader}<header>{entry.message.role === "assistant" ? "assistant" : entry.message.role === "user" ? "you" : entry.message.role}</header>{/if}
       {#if entry.message.role === "bashExecution"}
         <details class="tool" class:tool-error={entry.message.cancelled || (entry.message.exitCode !== undefined && entry.message.exitCode !== 0)} open={bashOpen} ontoggle={e => { bashOpen = e.currentTarget.open; }}>
           <summary><span class="tool-preview">{entry.message.command}</span></summary>
