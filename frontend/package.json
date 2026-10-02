@@ -7,7 +7,7 @@
     "build": "vite build",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "test": "vitest run",
-    "prepare": "sass --load-path=node_modules --load-path=node_modules/smui-theme/node_modules src/theme/styles.scss public/smui.css --style=compressed --no-source-map && sass --load-path=node_modules --load-path=node_modules/smui-theme/node_modules src/theme/dark/styles.scss public/smui-dark.css --style=compressed --no-source-map"
+    "prepare": "sass --quiet-deps --load-path=node_modules --load-path=node_modules/smui-theme/node_modules src/theme/styles.scss public/smui.css --style=compressed --no-source-map && sass --quiet-deps --load-path=node_modules --load-path=node_modules/smui-theme/node_modules src/theme/dark/styles.scss public/smui-dark.css --style=compressed --no-source-map"
   },
   "dependencies": {
     "@mdi/js": "^7.4.47",
