@@ -1,4 +1,13 @@
-import type { SessionState, SessionSummary, SyncOp } from "@pirc/api";
+import type { SessionListing, SessionState, SessionSummary, SyncOp } from "@pirc/api";
+
+export function sessionListing(summary: SessionSummary): SessionListing {
+  const { messagePreview: _, ...listing } = summary;
+  return listing;
+}
+export function listingKey(summary: SessionSummary): string {
+  const { lastActivityAt: _, ...listing } = sessionListing(summary);
+  return JSON.stringify(listing);
+}
 
 export function initialSummary(
   state: SessionState,
@@ -24,7 +33,7 @@ export function updateSummary(
   summary: SessionSummary,
   ops: SyncOp[],
 ): SessionSummary {
-  const next = { ...summary, lastActivityAt: new Date().toISOString() };
+  const next = { ...summary };
   for (const op of ops) {
     if (op.op === "set" && op.target === "state") {
       const s = op.value;
@@ -41,6 +50,7 @@ export function updateSummary(
       next.entryCount = op.from + op.items.length;
     }
   }
+  if (listingKey(next) !== listingKey(summary)) next.lastActivityAt = new Date().toISOString();
   return next;
 }
 

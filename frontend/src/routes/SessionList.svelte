@@ -1,10 +1,12 @@
 <script lang="ts">
   import "./SessionList.scss";
+  import { onMount } from "svelte";
   import { sessions } from "../lib/sessions.svelte.ts";
   import SessionCard from "../components/SessionCard.svelte";
   import type { SessionSummary } from "@pirc/api";
   import Banner, { Label } from "@smui/banner";
   import Button from "@smui/button";
+  onMount(() => { void sessions.refreshPreviews(); });
   let groups = $derived(sessions.items.reduce<Record<string, SessionSummary[]>>((groups, session) => {
     (groups[`${session.hostname} · ${session.cwd}`] ??= []).push(session);
     return groups;

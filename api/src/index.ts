@@ -3,6 +3,7 @@ export * from "./pi.ts";
 export * from "./model.ts";
 export * from "./projection.ts";
 export * from "./sync.ts";
+export * from "./objects.ts";
 export * from "./host-protocol.ts";
 export * from "./client-protocol.ts";
 export * from "./http.ts";

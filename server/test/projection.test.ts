@@ -1,6 +1,6 @@
 import { assertEquals } from "@std/assert";
 import { MOBILE_STREAM, type ProjectedEntry, type SyncOp } from "@pirc/api";
-import { projectEntry, projectOps, projectSnapshot } from "../core/projection.ts";
+import { projectEntry, projectOps, projectRuntime } from "../core/projection.ts";
 
 function entry(message: unknown): ProjectedEntry {
   return {
@@ -162,9 +162,11 @@ Deno.test("partial live calls project line counts and patch summaries without so
   assertEquals(bash[0].op === "set" && bash[0].target === "tool" ? bash[0].value?.command : undefined, "é".repeat(64));
 });
 
-Deno.test("only expanded running tool calls expose arguments and output in ops and snapshots", () => {
-  const stream = { ...MOBILE_STREAM, expandedToolCalls: ["patch", "bash"] };
-  const patch = { type: "toolCall" as const, id: "patch", name: "apply_patch", arguments: { patch: "*** Begin Patch\n+secret" } };
+Deno.test("runtime previews retain summaries, and subscribed output is not sent twice", () => {
+  const stream = MOBILE_STREAM;
+  const patch = { type: "toolCall" as const, id: "patch", name: "apply_patch", arguments: {
+    patch: "*** Begin Patch\n*** Update File: a.ts\n@@\n-old\n+secret\n*** End Patch",
+  } };
   const other = { ...patch, id: "other" };
   const tool = { toolName: "bash", startedAt: 1, output: "secret".repeat(500), totalBytes: 3000, truncatedHead: false };
   const ops: SyncOp[] = [
@@ -173,18 +175,23 @@ Deno.test("only expanded running tool calls expose arguments and output in ops a
     { seq: 3, op: "set", target: "tool", key: "bash", value: tool },
     { seq: 4, op: "set", target: "tool", key: "other", value: tool },
   ];
-  const projected = projectOps(ops, stream);
-  assertEquals((projected[0] as typeof ops[0]), ops[0]);
+  const projected = projectOps(ops, stream, new Set(["bash"]));
+  const first = projected[0];
+  assertEquals(first.op === "set" && first.target === "live.content" && first.value.type === "toolCall" ? first.value.changes : undefined,
+    [{ path: "a.ts", added: 1, removed: 1 }]);
+  assertEquals(JSON.stringify(first).includes("secret"), false);
   assertEquals(JSON.stringify(projected[1]).includes("secret"), false);
-  assertEquals(projected[2].op === "set" && projected[2].target === "tool" && projected[2].value?.output, tool.output);
+  assertEquals(projected[2].op === "set" && projected[2].target === "tool" && projected[2].value?.output, "");
   assertEquals(projected[3].op === "set" && projected[3].target === "tool" && projected[3].value?.output, tool.output.slice(-2048));
-  const snapshot = projectSnapshot({
-    seq: 4, entries: [], entryCount: 0, hasMoreBefore: false,
+  const snapshot = projectRuntime({
+    state: { instanceId: "i", hostId: "h", hostname: "box", sessionId: "s", cwd: "/", piVersion: "1",
+      availableThinkingLevels: [], status: { streaming: true, compacting: false, pendingMessages: false } },
+    seq: 4, calls: { patch, other },
     live: { provider: "test", model: "test", startedAt: 1, content: [patch, other] },
     tools: { bash: tool, other: tool }, toolDurations: {},
-  } as unknown as Parameters<typeof projectSnapshot>[0], stream);
-  assertEquals(snapshot.live?.content[0], patch);
+  }, stream);
+  assertEquals(snapshot.live?.content[0], first.op === "set" && first.target === "live.content" ? first.value : undefined);
   assertEquals(JSON.stringify(snapshot.live?.content[1]).includes("secret"), false);
-  assertEquals(snapshot.tools.bash.output, tool.output);
+  assertEquals(snapshot.tools.bash.output, tool.output.slice(-2048));
   assertEquals(snapshot.tools.other.output, tool.output.slice(-2048));
 });

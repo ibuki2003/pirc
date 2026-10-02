@@ -1,14 +1,11 @@
 import {
-  FULL_STREAM,
   MOBILE_STREAM,
   RPC_ERRORS,
   RpcError,
-  type StreamOptions,
 } from "@pirc/api";
 import {
   projectEntry,
   projectSnapshot,
-  validStream,
 } from "../core/projection.ts";
 import type { Registry } from "../core/registry.ts";
 import { json } from "./compress.ts";
@@ -20,22 +17,6 @@ function integer(value: string | null, fallback?: number): number {
     throw new Error("Invalid integer");
   }
   return n;
-}
-function stream(query: URLSearchParams): StreamOptions {
-  const profile = query.get("profile");
-  if (profile && profile !== "mobile" && profile !== "full") {
-    throw new Error("Invalid profile");
-  }
-  const base = profile === "full" ? FULL_STREAM : MOBILE_STREAM;
-  const options = {
-    toolOutputBytes: integer(
-      query.get("toolOutputBytes"),
-      base.toolOutputBytes,
-    ),
-    ...(query.has("expandedToolCalls") ? { expandedToolCalls: JSON.parse(query.get("expandedToolCalls")!) } : {}),
-  };
-  if (!validStream(options)) throw new Error("Invalid stream");
-  return options;
 }
 function getPath(value: string): (string | number)[] {
   if (!value.startsWith("/")) throw new Error("Invalid pointer");
@@ -103,7 +84,7 @@ export async function sessionRoute(
       },
     });
   }
-  const options = stream(url.searchParams);
+  const options = MOBILE_STREAM;
   if (path.endsWith("/sync")) {
     const since = url.searchParams.has("since")
       ? integer(url.searchParams.get("since"))

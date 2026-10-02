@@ -4,6 +4,7 @@ import { Registry } from "../core/registry.ts";
 import { initialSummary } from "../core/summary.ts";
 import type { ClientConnection } from "../core/client-connection.ts";
 import type { HostConnection } from "../core/host-connection.ts";
+import { Runtime } from "../core/runtime.ts";
 
 Deno.test("replacement host retains subscribers and requests resync", () => {
   const registry = new Registry();
@@ -20,6 +21,8 @@ Deno.test("replacement host retains subscribers and requests resync", () => {
   const calls: string[] = [];
   const client = {
     streams: new Map(),
+    toolSubscriptions: new Map(),
+    runtime: () => calls.push("runtime"),
     resync: () => calls.push("resync"),
     paused: () => false,
     closed: () => {},
@@ -28,19 +31,23 @@ Deno.test("replacement host retains subscribers and requests resync", () => {
   } as unknown as ClientConnection;
   const old = {
     summary: initialSummary(state, 0),
+    runtime: new Runtime({ seq: 0, state, live: null, tools: {}, calls: {}, toolDurations: {} }),
     viewers: () => {},
     close: () => registry.unregister(old),
   } as unknown as HostConnection;
   registry.register(old);
   registry.attach(client, "i", MOBILE_STREAM);
+  client.toolSubscriptions.set("i", new Map([["t", "old-subscription"]]));
   registry.unregister(old);
   const next = {
     summary: initialSummary(state, 0),
+    runtime: new Runtime({ seq: 0, state, live: null, tools: {}, calls: {}, toolDurations: {} }),
     viewers: () => {},
     close: () => {},
   } as unknown as HostConnection;
   registry.register(next);
+  assertEquals(client.toolSubscriptions.has("i"), false);
   registry.fanout("i", [{ seq: 1, op: "set", target: "leaf", value: "e" }]);
-  assertEquals(calls, ["resync", "ops:1"]);
+  assertEquals(calls, ["runtime", "resync", "ops:1"]);
   registry.unregister(next, "quit");
 });

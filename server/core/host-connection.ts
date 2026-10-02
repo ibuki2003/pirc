@@ -8,18 +8,20 @@ import {
   type SessionSummary,
   type Transport,
 } from "@pirc/api";
-import { completions, initialSummary, updateSummary } from "./summary.ts";
+import { completions, initialSummary, listingKey, updateSummary } from "./summary.ts";
 import type { Registry } from "./registry.ts";
+import { Runtime } from "./runtime.ts";
 
 export class HostConnection {
   readonly peer: RpcPeer<HostToServer, ServerToHost>;
   summary!: SessionSummary;
+  runtime!: Runtime;
   private registered = false;
   private closed = false;
   constructor(private registry: Registry, transport: Transport) {
     this.peer = new RpcPeer(transport, {
       requests: {
-        "host.hello": ({ protocolVersion, state, entryCount }) => {
+        "host.hello": ({ protocolVersion, runtime, entryCount }) => {
           if (this.registered) {
             throw new RpcError(
               RPC_ERRORS.INVALID_REQUEST,
@@ -33,7 +35,8 @@ export class HostConnection {
               "Protocol mismatch",
             );
           }
-          this.summary = initialSummary(state, entryCount);
+          this.runtime = new Runtime(runtime);
+          this.summary = initialSummary(runtime.state, entryCount);
           this.registered = true;
           this.registry.register(this);
           return {};
@@ -58,10 +61,20 @@ export class HostConnection {
             this.close();
             return;
           }
-          for (const session of completions(this.summary, ops)) this.registry.completed(session);
-          this.summary = updateSummary(this.summary, ops);
-          this.registry.fanout(this.summary.instanceId, ops);
-          this.registry.changed();
+          const fresh = ops.filter(op => op.seq > this.runtime.sequence);
+          if (!fresh.length) return;
+          try {
+            this.runtime.apply(fresh, (id, event) => this.registry.toolObject(this.summary.instanceId, id, event));
+          } catch (error) {
+            console.error("Host runtime synchronization failed", error);
+            this.close();
+            return;
+          }
+          for (const session of completions(this.summary, fresh)) this.registry.completed(session);
+          const previous = this.summary;
+          this.summary = updateSummary(previous, fresh);
+          this.registry.fanout(this.summary.instanceId, fresh);
+          if (listingKey(previous) !== listingKey(this.summary)) this.registry.changed();
         },
         "session.notice": (notice) => {
           if (this.registered) {

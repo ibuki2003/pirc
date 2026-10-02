@@ -2,6 +2,8 @@
   import type { ProjectedAssistantEntry, ProjectedEntry, RedactedToolCall, ToolProgress } from "@pirc/api";
   import ToolCallView from "./ToolCallView.svelte";
   import type { ToolDisplay } from "./types";
+  import { getContext } from "svelte";
+  import { toolExpansionContext, type ToolExpansion } from "./types";
 
   type Call = Extract<ProjectedAssistantEntry["message"]["content"][number], { type: "toolCall" }>;
   let { calls, results, instanceId, entryId, expand, subscribeTool = () => {}, tools, toolDurations }: {
@@ -15,6 +17,8 @@
     toolDurations: Map<string, number>;
   } = $props();
   let error = $state("");
+  const details = getContext<ToolExpansion | undefined>(toolExpansionContext);
+  const pending = new Set<string>();
   // Full-entry retrieval replaces the projected call; retain its server-computed summary.
   let projectedChanges = $state<(RedactedToolCall["changes"] | undefined)[]>([]);
   $effect(() => {
@@ -41,11 +45,18 @@
     failed, bytes: showSize ? bytes : undefined, error,
   });
   async function load(id: string) {
+    if (pending.has(id)) return;
+    pending.add(id);
     try { await expand(id); } catch (e) { error = String(e); }
+    finally { pending.delete(id); }
   }
   function open() {
-    if (calls.some(call => "redacted" in call && call.redacted && call.name !== "read")) void load(entryId);
-    for (const result of toolResults.flat()) if (result.entry.type === "redacted") void load(result.entry.id);
+    for (const [index, call] of calls.entries()) {
+      const object = details?.objects.get(call.id);
+      if (object?.complete || details?.canStreamTool(call.id)) continue;
+      if ("redacted" in call && call.redacted && call.name !== "read") void load(entryId);
+      for (const result of toolResults[index]) if (result.entry.type === "redacted") void load(result.entry.id);
+    }
   }
 </script>
 <ToolCallView {display} {instanceId} onopen={open} {subscribeTool} />

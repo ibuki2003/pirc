@@ -1,12 +1,13 @@
 <script lang="ts">
   import "./entries/EntryView.scss";
-  import type { LiveMessage, ToolProgress } from "@pirc/api";
+  import type { LiveMessage, LiveBlock, ToolProgress } from "@pirc/api";
   import { markdown } from "../lib/markdown.ts";
   import ToolCallView from "./entries/tools/ToolCallView.svelte";
   import { liveToolDisplay } from "./entries/tools/live-tool";
-  let { live, tools, visibleToolCalls, instanceId, subscribeTool = () => {}, showHeader = true }: {
+  let { live, tools, calls = new Map(), visibleToolCalls, instanceId, subscribeTool = () => {}, showHeader = true }: {
     live: LiveMessage | null; tools: Map<string, ToolProgress>; visibleToolCalls: Set<string>; instanceId: string;
     subscribeTool?: (ids: string[], expanded: boolean) => void; showHeader?: boolean
+    calls?: Map<string, Extract<LiveBlock, { type: "toolCall" }>>;
   } = $props();
   const visibleBlocks = $derived(live?.content.filter(block =>
     block.type !== "toolCall" || !visibleToolCalls.has(block.id)) ?? []);
@@ -23,5 +24,5 @@
   </article>
 {/if}
 {#each orphanTools as [id, tool] (id)}
-  <article class="entry assistant"><ToolCallView display={liveToolDisplay(id, null, tool)} {instanceId} {subscribeTool} /></article>
+  <article class="entry assistant"><ToolCallView display={liveToolDisplay(id, calls.get(id) ?? null, tool)} {instanceId} {subscribeTool} /></article>
 {/each}

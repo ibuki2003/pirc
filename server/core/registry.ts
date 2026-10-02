@@ -3,16 +3,19 @@ import {
   RPC_ERRORS,
   RpcError,
   type SessionSummary,
+  type SessionListing,
   type StreamOptions,
   type SyncOp,
+  type ToolObjectEvent,
 } from "@pirc/api";
 import { projectOps, streamKey } from "./projection.ts";
 import type { HostConnection } from "./host-connection.ts";
 import type { ClientConnection } from "./client-connection.ts";
+import { sessionListing } from "./summary.ts";
 
 export class Registry {
   private hosts = new Map<string, HostConnection>();
-  private subscribers = new Set<ClientConnection>();
+  private subscribers = new Map<ClientConnection, Map<string, string>>();
   private completionSubscribers = new Set<ClientConnection>();
   private viewers = new Map<string, Set<ClientConnection>>();
   private offline = new Set<string>();
@@ -40,6 +43,7 @@ export class Registry {
     this.hosts.set(id, host);
     if (previous || this.offline.delete(id)) {
       for (const client of this.viewers.get(id) ?? []) {
+        client.toolSubscriptions.delete(id);
         client.resync(id, "host_reconnected");
       }
     }
@@ -66,9 +70,10 @@ export class Registry {
     this.viewers.delete(id);
     this.changed();
   }
-  subscribe(client: ClientConnection): SessionSummary[] {
-    this.subscribers.add(client);
-    return this.list();
+  subscribe(client: ClientConnection): SessionListing[] {
+    const items = this.list().map(sessionListing);
+    this.subscribers.set(client, new Map(items.map(item => [item.instanceId, JSON.stringify(item)])));
+    return items;
   }
   unsubscribe(client: ClientConnection): void {
     this.subscribers.delete(client);
@@ -88,10 +93,13 @@ export class Registry {
     if (!group) this.viewers.set(id, group = new Set());
     group.add(client);
     client.streams.set(id, stream);
+    client.toolSubscriptions.delete(id);
+    client.runtime(id, this.host(id).runtime.snapshot());
     this.viewerCount(id);
   }
   detach(client: ClientConnection, id: string): void {
     client.streams.delete(id);
+    client.toolSubscriptions.delete(id);
     const group = this.viewers.get(id);
     group?.delete(client);
     if (group?.size === 0) this.viewers.delete(id);
@@ -111,12 +119,16 @@ export class Registry {
       if (client.paused(id)) continue;
       const stream = client.streams.get(id);
       if (!stream) continue;
-      const key = streamKey(stream);
+      const expanded = new Set(client.toolSubscriptions.get(id)?.keys());
+      const key = streamKey(stream) + JSON.stringify([...expanded].sort());
       if (!projected.has(key)) {
-        projected.set(key, projectOps(ops, stream));
+        projected.set(key, projectOps(ops, stream, expanded));
       }
       client.ops(id, projected.get(key)!);
     }
+  }
+  toolObject(instanceId: string, toolCallId: string, event: ToolObjectEvent): void {
+    for (const client of this.viewers.get(instanceId) ?? []) client.toolObject(instanceId, toolCallId, event);
   }
   notice(id: string, notice: Notice): void {
     for (const client of this.viewers.get(id) ?? []) client.notice(id, notice);
@@ -125,8 +137,14 @@ export class Registry {
     if (this.changedTimer !== undefined) return;
     this.changedTimer = setTimeout(() => {
       this.changedTimer = undefined;
-      const sessions = this.list();
-      for (const client of this.subscribers) client.sessionsChanged(sessions);
+      const items = this.list().map(sessionListing);
+      const current = new Map(items.map(item => [item.instanceId, JSON.stringify(item)]));
+      for (const [client, previous] of this.subscribers) {
+        const upsert = items.filter(item => previous.get(item.instanceId) !== current.get(item.instanceId));
+        const removed = [...previous.keys()].filter(id => !current.has(id));
+        if (upsert.length || removed.length) client.sessionsChanged(upsert, removed);
+        this.subscribers.set(client, current);
+      }
     }, 500);
   }
 }

@@ -4,13 +4,15 @@ import type { LiveBlock, LiveMessage, OpInput, ToolProgress } from "../../api/sr
 export class LiveTracker {
   private live: LiveMessage | null = null;
   private tools = new Map<string, ToolProgress>();
+  private calls = new Map<string, Extract<LiveBlock, { type: "toolCall" }>>();
   private lastToolUpdate = new Map<string, number>();
   private pendingCalls = new Map<number, Extract<LiveBlock, { type: "toolCall" }>>();
   private callTimer?: ReturnType<typeof setTimeout>;
   constructor(private push: (op: OpInput) => void, private durations = new Map<string, number>()) {}
-  snapshot(): { live: LiveMessage | null; tools: Record<string, ToolProgress>; toolDurations: Record<string, number> } {
+  snapshot(): Pick<import("../../api/src/index.ts").RuntimeSnapshot, "live" | "tools" | "toolDurations" | "calls"> {
     return { live: this.live && { ...this.live, content: this.live.content.map(b => ({ ...b })) },
-      tools: Object.fromEntries(this.tools), toolDurations: Object.fromEntries(this.durations) };
+      tools: Object.fromEntries(this.tools), toolDurations: Object.fromEntries(this.durations),
+      calls: Object.fromEntries(this.calls) };
   }
   start(event: MessageStartEvent): void {
     if (event.message.role !== "assistant") return;
@@ -42,6 +44,7 @@ export class LiveTracker {
       } else {
         this.pendingCalls.delete(i);
         this.live.content[i] = block;
+        this.calls.set(block.id, block);
         this.push({ op: "set", target: "live.content", index: i, value: { ...block } });
       }
     }
@@ -51,6 +54,7 @@ export class LiveTracker {
     for (const [index, block] of this.pendingCalls) {
       if (!this.live) break;
       this.live.content[index] = block;
+      this.calls.set(block.id, block);
       this.push({ op: "set", target: "live.content", index, value: block });
     }
     this.pendingCalls.clear();
@@ -63,6 +67,11 @@ export class LiveTracker {
   end(): void { if (this.live) { this.clearCalls(); this.live = null; this.push({ op: "set", target: "live", value: null }); } }
   stop(): void { this.clearCalls(); }
   toolStart(event: ToolExecutionStartEvent): void {
+    const call: Extract<LiveBlock, { type: "toolCall" }> = {
+      type: "toolCall", id: event.toolCallId, name: event.toolName, arguments: event.args,
+    };
+    this.calls.set(call.id, call);
+    this.push({ op: "set", target: "call", key: call.id, value: call });
     const value: ToolProgress = { toolName: event.toolName, startedAt: Date.now(), output: "", totalBytes: 0, truncatedHead: false,
       ...(event.toolName === "bash" ? { command: String(event.args?.command ?? "") } : {}) };
     this.tools.set(event.toolCallId, value);
@@ -93,4 +102,6 @@ export class LiveTracker {
     this.lastToolUpdate.delete(event.toolCallId);
     this.push({ op: "set", target: "tool", key: event.toolCallId, value: null });
   }
+  committed(id: string): void { this.calls.delete(id); }
+  pruneIdle(): void { if (!this.live && !this.tools.size) this.calls.clear(); }
 }

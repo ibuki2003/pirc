@@ -21,9 +21,12 @@ vi.mock("../lib/mirror/mirror-store.svelte.ts", () => ({
   MirrorStore: class {
     constructor(readonly instanceId: string) {}
     get mirror() {
+      return { hasMoreBefore: false };
+    }
+    get runtime() {
       return {
         state: { ...items.find(item => item.instanceId === this.instanceId), availableThinkingLevels: [] },
-        hasMoreBefore: false, live: null, tools: new Map(), toolDurations: new Map(),
+        live: null, tools: new Map(), toolDurations: new Map(), calls: new Map(),
       };
     }
     branch = [];

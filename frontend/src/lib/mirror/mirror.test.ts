@@ -1,21 +1,22 @@
 import { describe, it, expect } from "vitest";
-import { applyOps, applySnapshot, computeBranch, missingAncestor, SyncMismatch } from "./mirror.ts";
+import { applyOps, applySnapshot, applyRuntimeOps, runtimeSnapshot, computeBranch, missingAncestor, SyncMismatch } from "./mirror.ts";
 import type { SessionSnapshot, SessionState, SyncOp } from "@pirc/api";
 
-const state = { instanceId: "i" } as SessionState;
+const state = { instanceId: "i", status: { streaming: true } } as SessionState;
 const item = (index: number, id: string, parentId: string | null) =>
   ({ index, entry: { type: "session_info" as const, id, parentId, timestamp: "", name: id } });
 const snapshot: SessionSnapshot = {
-  mode: "full", state, seq: 0, entryCount: 2, lastEntryId: "b", leafId: "b",
-  entries: [item(1, "b", "a")], hasMoreBefore: true, live: null, tools: {}, toolDurations: {},
+  mode: "full", seq: 0, entryCount: 2, lastEntryId: "b", leafId: "b",
+  entries: [item(1, "b", "a")], hasMoreBefore: true,
 };
+const runtime = { seq: 0, state, live: null, tools: {}, calls: {}, toolDurations: {} };
 describe("mirror", () => {
   it("synchronizes completed durations atomically and restores them on reconnect", () => {
-    const previous = applySnapshot(null, snapshot);
-    const next = applyOps(previous, [{ seq: 1, op: "set", target: "toolDuration", key: "bash", value: 2500 }]);
+    const previous = runtimeSnapshot(runtime);
+    const next = applyRuntimeOps(previous, [{ seq: 1, op: "set", target: "toolDuration", key: "bash", value: 2500 }]);
     expect(previous.toolDurations.size).toBe(0);
     expect(next.toolDurations.get("bash")).toBe(2500);
-    const reconnected = applySnapshot(null, { ...snapshot, seq: 1, toolDurations: { bash: 2500 } });
+    const reconnected = runtimeSnapshot({ ...runtime, seq: 1, toolDurations: { bash: 2500 } });
     expect(reconnected.toolDurations).toEqual(next.toolDurations);
   });
   it("tracks a partial branch and merges older entries", () => {
@@ -38,14 +39,14 @@ describe("mirror", () => {
     expect(m.entryCount).toBe(2);
   });
   it("applies live deltas without mutating the previous frame", () => {
-    const initial = applySnapshot(null, snapshot);
-    const next = applyOps(initial, [
+    const initial = runtimeSnapshot(runtime);
+    const next = applyRuntimeOps(initial, [
       { seq: 1, op: "set", target: "live", value: { provider: "p", model: "m", startedAt: 1, content: [] } },
       { seq: 2, op: "set", target: "live.content", index: 0, value: { type: "text", text: "a" } },
       { seq: 3, op: "append", target: "live.content", index: 0, text: "b" },
     ]);
     expect(next.live?.content).toEqual([{ type: "text", text: "ab" }]);
     expect(initial.live).toBeNull();
-    expect(applySnapshot(next, { ...snapshot, mode: "delta", seq: 3, entries: [], entryCount: 2 }).hasMoreBefore).toBe(true);
+    expect(applySnapshot(applySnapshot(null, snapshot), { ...snapshot, mode: "delta", seq: 3, entries: [], entryCount: 2 }).hasMoreBefore).toBe(true);
   });
 });

@@ -2,9 +2,9 @@
   import ToolWriteSummary from "./WriteSummary.svelte";
   import ToolPath from "./ToolPath.svelte";
   import type { ToolViewProps } from "./types";
-  let { calls, changes, failed, toggle, status, output, error }: ToolViewProps = $props();
+  let { calls, changes, failed, open, toggle, status, output, error }: ToolViewProps = $props();
 </script>
-<details class="tool" class:tool-error={failed} ontoggle={e => toggle(e.currentTarget.open)}>
+<details class="tool" class:tool-error={failed} {open} ontoggle={e => toggle(e.currentTarget.open)}>
   <summary><span class="tool-name">write</span><ToolWriteSummary path={String(calls[0].arguments?.path ?? "")} change={changes[0]?.[0]} />{@render status()}</summary>
   {#each calls as call, i (call.id)}
     <h6><ToolPath path={String(call.arguments?.path ?? "")} /></h6>

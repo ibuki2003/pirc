@@ -77,7 +77,7 @@
       <section class="god-column" aria-label={`セッション ${instanceId}`}>
         <SessionPane {instanceId} onswitch={id => replace(instanceId, id)}>
           {#snippet header(store)}
-            {@const state = store.mirror?.state ?? sessions.items.find(item => item.instanceId === instanceId)}
+            {@const state = store.runtime?.state ?? sessions.items.find(item => item.instanceId === instanceId)}
             <TopAppBar variant="static" class="session-bar">
               <Row>
                 <Section align="start">

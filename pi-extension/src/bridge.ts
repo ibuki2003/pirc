@@ -27,7 +27,14 @@ export class Bridge {
   constructor(private pi: ExtensionAPI, private ctx: ExtensionContext, url: string,
     switchSession: Parameters<typeof controls>[3], previous?: { instanceId: string; seq: number }) {
     this.instanceId = previous?.instanceId ?? crypto.randomUUID();
-    const push = (op: OpInput) => this.outbox.push(op);
+    const push = (op: OpInput) => {
+      if (op.op === "append" && op.target === "entries") {
+        for (const { entry } of op.items) {
+          if (entry.type === "message" && entry.message.role === "toolResult") this.live.committed(entry.message.toolCallId);
+        }
+      }
+      this.outbox.push(op);
+    };
     this.entries = new EntryTracker(ctx, push);
     const sessionKey = ctx.sessionManager.getSessionFile() ?? this.instanceId;
     let durations = sessionDurations.get(sessionKey);
@@ -39,8 +46,7 @@ export class Bridge {
       requests: {
         "host.sync": ({ since, branchLimit }): SessionSnapshot => {
           this.outbox.flush();
-          return { ...this.entries.snapshot(since, branchLimit), seq: this.outbox.sequence,
-            state: this.state.get(), ...this.live.snapshot() };
+          return { ...this.entries.snapshot(since, branchLimit), seq: this.outbox.sequence };
         },
         "host.branch": ({ leafId, limit }) => this.entries.branch(leafId, limit),
         "host.entry": ({ entryId }) => this.entries.entry(entryId),
@@ -55,13 +61,20 @@ export class Bridge {
       },
       notifications: { "host.viewers": ({ count }) => { this.viewers = count; this.footer(); } },
     };
-    this.connection = new Connection(url, handlers, () => this.state.get(), () => this.entries.count, status => {
+    this.connection = new Connection(url, handlers, () => {
+      this.outbox.flush();
+      return { seq: this.outbox.sequence, state: this.state.get(), ...this.live.snapshot() };
+    }, () => this.entries.count, status => {
       this.status = status; this.footer();
     });
     this.connection.start();
     this.poll = setInterval(() => { if (!this.stopped) this.outbox.flush(); }, 1000);
   }
-  reconcile(): void { this.entries.reconcile(); this.state.diff(); }
+  reconcile(): void {
+    this.entries.reconcile();
+    if (this.ctx.isIdle()) this.live.pruneIdle();
+    this.state.diff();
+  }
   footer(): void {
     if (this.stopped) return;
     if (this.ctx.mode === "tui") this.ctx.ui.setStatus("pirc", `pirc: ${this.status} · ${this.viewers} viewers`);

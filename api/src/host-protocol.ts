@@ -1,14 +1,14 @@
 import type { ImageContent, SessionEntry, ThinkingLevel } from "./pi.ts";
-import type { ModelRef, Notice, SessionState } from "./model.ts";
+import type { ModelRef, Notice } from "./model.ts";
 import type { ProjectedEntry } from "./projection.ts";
-import type { SessionSnapshot, SyncOp } from "./sync.ts";
+import type { RuntimeSnapshot, SessionSnapshot, SyncOp } from "./sync.ts";
 export type CloseReason = "quit" | "reload" | "new" | "resume" | "fork";
 export interface TreeNode {
   id: string; parentId: string | null; type: string; role?: string; label?: string; timestamp: string; preview: string;
 }
 export interface HostToServer {
   requests: {
-    "host.hello": { params: { protocolVersion: number; state: SessionState; entryCount: number }; result: Record<string, never> };
+    "host.hello": { params: { protocolVersion: number; runtime: RuntimeSnapshot; entryCount: number }; result: Record<string, never> };
     ping: { params: Record<string, never>; result: Record<string, never> };
   };
   notifications: {

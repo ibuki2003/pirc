@@ -5,15 +5,20 @@ import {
   RpcPeer,
   type ServerToClient,
   type SessionSummary,
+  type SessionListing,
   type StreamOptions,
   type SyncOp,
   type Transport,
+  type ToolObjectEvent,
+  type RuntimeSnapshot,
 } from "@pirc/api";
 import { validStream } from "./projection.ts";
+import { projectRuntime } from "./projection.ts";
 import type { Registry } from "./registry.ts";
 
 export class ClientConnection {
   readonly streams = new Map<string, StreamOptions>();
+  readonly toolSubscriptions = new Map<string, Map<string, string>>();
   readonly peer: RpcPeer<ClientToServer, ServerToClient>;
   private blocked = new Set<string>();
   private timer?: ReturnType<typeof setInterval>;
@@ -70,7 +75,27 @@ export class ClientConnection {
             throw new Error("Session not attached");
           }
           this.streams.set(instanceId, stream);
-          this.resync(instanceId, "backpressure");
+          this.toolSubscriptions.delete(instanceId);
+          this.runtime(instanceId, this.registry.host(instanceId).runtime.snapshot());
+          return {};
+        },
+        "tool.subscribe": ({ instanceId, toolCallId, subscriptionId }) => {
+          if (!this.streams.has(instanceId)) throw new Error("Session not attached");
+          if (!toolCallId || toolCallId.length > 256 || !subscriptionId || subscriptionId.length > 256) {
+            throw new Error("Invalid tool subscription");
+          }
+          let subscriptions = this.toolSubscriptions.get(instanceId);
+          if (!subscriptions) this.toolSubscriptions.set(instanceId, subscriptions = new Map());
+          subscriptions.set(toolCallId, subscriptionId);
+          const object = this.registry.host(instanceId).runtime.objects.get(toolCallId);
+          this.toolObject(instanceId, toolCallId, object
+            ? { type: "snapshot", revision: object.revision, value: object.value }
+            : { type: "unavailable" });
+          return {};
+        },
+        "tool.unsubscribe": ({ instanceId, toolCallId, subscriptionId }) => {
+          const subscriptions = this.toolSubscriptions.get(instanceId);
+          if (subscriptions?.get(toolCallId) === subscriptionId) subscriptions.delete(toolCallId);
           return {};
         },
         "session.prompt": async ({ instanceId, ...params }) => {
@@ -130,7 +155,10 @@ export class ClientConnection {
     }
     if (this.socket.bufferedAmount > 1024 * 1024) return;
     for (const id of this.blocked) {
-      if (this.streams.has(id)) this.resync(id, "backpressure");
+      if (this.streams.has(id)) {
+        this.toolSubscriptions.delete(id);
+        this.resync(id, "backpressure");
+      }
     }
     this.blocked.clear();
     clearInterval(this.timer);
@@ -138,6 +166,17 @@ export class ClientConnection {
   }
   ops(instanceId: string, ops: SyncOp[]): void {
     if (ops.length) this.peer.notify("session.ops", { instanceId, ops });
+  }
+  runtime(instanceId: string, snapshot: RuntimeSnapshot): void {
+    const stream = this.streams.get(instanceId);
+    if (stream) this.peer.notify("session.runtime", { instanceId, snapshot: projectRuntime(snapshot, stream) });
+  }
+  toolObject(instanceId: string, toolCallId: string, event: ToolObjectEvent): void {
+    const subscriptions = this.toolSubscriptions.get(instanceId);
+    const subscriptionId = subscriptions?.get(toolCallId);
+    if (!subscriptionId || this.paused(instanceId)) return;
+    this.peer.notify("tool.object", { instanceId, toolCallId, subscriptionId, event });
+    if (event.type === "end" || event.type === "unavailable") subscriptions!.delete(toolCallId);
   }
   notice(instanceId: string, notice: Notice): void {
     this.peer.notify("session.notice", { instanceId, ...notice });
@@ -153,10 +192,11 @@ export class ClientConnection {
   }
   forget(id: string): void {
     this.streams.delete(id);
+    this.toolSubscriptions.delete(id);
     this.blocked.delete(id);
   }
-  sessionsChanged(sessions: SessionSummary[]): void {
-    this.peer.notify("sessions.changed", { sessions });
+  sessionsChanged(upsert: SessionListing[], removed: string[]): void {
+    this.peer.notify("sessions.changed", { upsert, removed });
   }
   completed(session: ServerToClient["notifications"]["session.completed"]): void {
     this.peer.notify("session.completed", session);

@@ -5,6 +5,8 @@ import {
   type RedactedEntry,
   type RedactedToolCall,
   type SessionSnapshot,
+  type RuntimeSnapshot,
+  type SessionState,
   type StreamOptions,
   type SyncOp,
   type ToolProgress,
@@ -13,6 +15,10 @@ import {
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 const BASH_COMMAND_BYTES = 128;
+function projectState(state: SessionState): SessionState {
+  const { messagePreview: _, ...value } = state;
+  return value;
+}
 
 function head(text: string, limit: number): string {
   const bytes = encoder.encode(text);
@@ -137,19 +143,20 @@ export function projectEntry(item: ProjectedEntry, _options: StreamOptions): Pro
   };
 }
 
-export function projectTool(value: ToolProgress, options: StreamOptions, id?: string): ToolProgress {
-  const output = id && options.expandedToolCalls?.includes(id) ? value.output : tail(value.output, options.toolOutputBytes);
+export function projectTool(value: ToolProgress, options: StreamOptions): ToolProgress {
+  const output = tail(value.output, options.toolOutputBytes);
   return { ...value, output, truncatedHead: value.totalBytes > encoder.encode(output).length,
     ...(value.command !== undefined ? { command: head(value.command, BASH_COMMAND_BYTES) } : {}) };
 }
 
-function projectLiveBlock(value: LiveBlock, options: StreamOptions): LiveBlock {
-  return value.type === "toolCall"
-    ? options.expandedToolCalls?.includes(value.id) ? value : redactedCall(value) as LiveBlock
-    : value;
+function projectLiveBlock(value: LiveBlock): LiveBlock {
+  if (value.type !== "toolCall") return value;
+  const projected = redactedCall(value);
+  return projected as LiveBlock;
 }
 
 export function projectOp(op: SyncOp, options: StreamOptions): SyncOp {
+  if (op.op === "set" && op.target === "state") return { ...op, value: projectState(op.value) };
   if (op.op === "append" && op.target === "entries") {
     return { ...op, items: op.items.map((item) => projectEntry(item, options)) };
   }
@@ -158,34 +165,44 @@ export function projectOp(op: SyncOp, options: StreamOptions): SyncOp {
       ...op,
       value: op.value && {
         ...op.value,
-        content: op.value.content.map((block) => projectLiveBlock(block, options)),
+        content: op.value.content.map(projectLiveBlock),
       },
     };
   }
   if (op.op === "set" && op.target === "live.content") {
-    return { ...op, value: projectLiveBlock(op.value, options) };
+    return { ...op, value: projectLiveBlock(op.value) };
   }
   if (op.op === "set" && op.target === "tool") {
-    return { ...op, value: op.value && projectTool(op.value, options, op.key) };
+    return { ...op, value: op.value && projectTool(op.value, options) };
   }
+  if (op.op === "set" && op.target === "call") return { ...op, value: redactedCall(op.value) };
   return op;
 }
 
-export function projectOps(ops: SyncOp[], options: StreamOptions): SyncOp[] {
-  return ops.map((op) => projectOp(op, options));
+export function projectOps(ops: SyncOp[], options: StreamOptions, subscriptions: ReadonlySet<string> = new Set()): SyncOp[] {
+  return ops.map((op) => projectOp(op,
+    op.op === "set" && op.target === "tool" && subscriptions.has(op.key) ? { toolOutputBytes: 0 } : options));
 }
 
 export function projectSnapshot(snapshot: SessionSnapshot, options: StreamOptions): SessionSnapshot {
   return {
     ...snapshot,
     entries: snapshot.entries.map((item) => projectEntry(item, options)),
+  };
+}
+
+export function projectRuntime(snapshot: RuntimeSnapshot, options: StreamOptions): RuntimeSnapshot {
+  return {
+    ...snapshot,
+    state: projectState(snapshot.state),
     live: snapshot.live && {
       ...snapshot.live,
-      content: snapshot.live.content.map((block) => projectLiveBlock(block, options)),
+      content: snapshot.live.content.map(projectLiveBlock),
     },
     tools: Object.fromEntries(
-      Object.entries(snapshot.tools).map(([id, tool]) => [id, projectTool(tool, options, id)]),
+      Object.entries(snapshot.tools).map(([id, tool]) => [id, projectTool(tool, options)]),
     ),
+    calls: Object.fromEntries(Object.entries(snapshot.calls).map(([id, call]) => [id, redactedCall(call)])),
   };
 }
 
@@ -194,8 +211,5 @@ export function streamKey(options: StreamOptions): string {
 }
 
 export function validStream(value: StreamOptions): boolean {
-  return Number.isSafeInteger(value?.toolOutputBytes) && value.toolOutputBytes >= 0 &&
-    (value.expandedToolCalls === undefined ||
-      (Array.isArray(value.expandedToolCalls) && value.expandedToolCalls.length <= 32 &&
-        value.expandedToolCalls.every(id => typeof id === "string" && id.length <= 256)));
+  return Number.isSafeInteger(value?.toolOutputBytes) && value.toolOutputBytes >= 0;
 }

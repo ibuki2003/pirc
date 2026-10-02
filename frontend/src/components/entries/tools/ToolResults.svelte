@@ -13,7 +13,7 @@
   {:else if result.entry.type === "message" && result.entry.message.role === "toolResult"}
     {#each result.entry.message.content as output, j}
       {#if output.type === "text"}<pre>{output.text}</pre>
-      {:else if output.type === "image"}<BlobImage {instanceId} entryId={result.entry.id} path={["message", "content", j, "data"]} />{/if}
+      {:else if output.type === "image"}<BlobImage {instanceId} entryId={result.entry.id} path={["message", "content", j, "data"]} image={output} />{/if}
     {/each}
   {/if}
 {/each}

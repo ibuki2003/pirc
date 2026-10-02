@@ -5,7 +5,7 @@ import { initialSummary } from "../core/summary.ts";
 import type { HostConnection } from "../core/host-connection.ts";
 import type { SessionState } from "@pirc/api";
 
-Deno.test("HTTP sync forwards cursor and projects with query stream", async () => {
+Deno.test("HTTP sync forwards the history cursor and contains no running state", async () => {
   const registry = new Registry();
   const state: SessionState = {
     instanceId: "i",
@@ -31,9 +31,6 @@ Deno.test("HTTP sync forwards cursor and projects with query stream", async () =
           leafId: "e",
           hasMoreBefore: false,
           mode: "delta",
-          state,
-          live: null,
-          tools: {}, toolDurations: {},
           entries: [{
             index: 0,
             entry: {
@@ -65,6 +62,7 @@ Deno.test("HTTP sync forwards cursor and projects with query stream", async () =
   assertEquals(response.status, 200);
   assertEquals(params, { since: 0, branchLimit: 7 });
   const body = await response.json();
+  assertEquals(["state", "live", "tools", "calls", "toolDurations"].some(key => key in body), false);
   assertEquals(body.entries[0].entry, {
     type: "redacted", redacted: true, id: "e", parentId: null, timestamp: "",
     originalBytes: new TextEncoder().encode(JSON.stringify({

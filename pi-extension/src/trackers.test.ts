@@ -91,14 +91,19 @@ describe("LiveTracker", () => {
       const tracker = new LiveTracker(op => ops.push(op), durations);
       tracker.toolStart({ toolCallId: "bash", toolName: "bash", args: {} } as ToolExecutionStartEvent);
       vi.advanceTimersByTime(2500);
-      expect(ops).toHaveLength(1);
+      expect(ops).toHaveLength(2);
+      expect(ops[0]).toEqual({ op: "set", target: "call", key: "bash",
+        value: { type: "toolCall", id: "bash", name: "bash", arguments: {} } });
       tracker.toolEnd({ toolCallId: "bash" } as ToolExecutionEndEvent);
-      expect(ops.slice(1)).toEqual([
+      expect(ops.slice(2)).toEqual([
         { op: "set", target: "toolDuration", key: "bash", value: 2500 },
         { op: "set", target: "tool", key: "bash", value: null },
       ]);
       expect(tracker.snapshot().tools).toEqual({});
       expect(tracker.snapshot().toolDurations).toEqual({ bash: 2500 });
+      expect(tracker.snapshot().calls.bash).toBeDefined();
+      tracker.committed("bash");
+      expect(tracker.snapshot().calls.bash).toBeUndefined();
       expect(new LiveTracker(() => {}, durations).snapshot().toolDurations).toEqual({ bash: 2500 });
       tracker.toolEnd({ toolCallId: "unknown" } as ToolExecutionEndEvent);
       expect(durations.size).toBe(1);

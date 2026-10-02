@@ -1,15 +1,9 @@
 import { entryPath, sessionPath, sessionsPath } from "../http.ts";
 import type { SessionSummary } from "../model.ts";
-import type { StreamOptions } from "../projection.ts";
 import type { SessionSnapshot } from "../sync.ts";
 import type { ProjectedEntry } from "../projection.ts";
 import type { SessionEntry } from "../pi.ts";
 
-function params(stream?: StreamOptions): URLSearchParams {
-  const query = new URLSearchParams();
-  if (stream) for (const [key, value] of Object.entries(stream)) query.set(key, Array.isArray(value) ? JSON.stringify(value) : String(value));
-  return query;
-}
 export class HttpClient {
   constructor(private base = "", private fetcher: typeof fetch = fetch) {}
   private async get<T>(path: string): Promise<T> {
@@ -18,14 +12,14 @@ export class HttpClient {
     return response.json() as Promise<T>;
   }
   listSessions(): Promise<SessionSummary[]> { return this.get(sessionsPath); }
-  getSync(instanceId: string, options: { since?: number; branchLimit?: number; stream?: StreamOptions } = {}): Promise<SessionSnapshot> {
-    const query = params(options.stream);
+  getSync(instanceId: string, options: { since?: number; branchLimit?: number } = {}): Promise<SessionSnapshot> {
+    const query = new URLSearchParams();
     if (options.since !== undefined) query.set("since", String(options.since));
     query.set("branchLimit", String(options.branchLimit ?? 100));
     return this.get(`${sessionPath(instanceId)}/sync?${query}`);
   }
-  getBranch(instanceId: string, leafId: string, limit = 100, stream?: StreamOptions): Promise<{ entries: ProjectedEntry[]; hasMoreBefore: boolean }> {
-    const query = params(stream);
+  getBranch(instanceId: string, leafId: string, limit = 100): Promise<{ entries: ProjectedEntry[]; hasMoreBefore: boolean }> {
+    const query = new URLSearchParams();
     query.set("leaf", leafId);
     query.set("limit", String(limit));
     return this.get(`${sessionPath(instanceId)}/branch?${query}`);

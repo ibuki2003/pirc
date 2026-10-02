@@ -1,16 +1,30 @@
 <script lang="ts">
   import "./Transcript.scss";
-  import type { LiveMessage, ProjectedEntry, ToolProgress } from "@pirc/api";
+  import type { LiveMessage, LiveBlock, ProjectedEntry, ToolProgress } from "@pirc/api";
+  import type { CachedToolObject } from "../lib/mirror/mirror-store.svelte.ts";
   import EntryView from "./entries/EntryView.svelte";
   import LiveMessageView from "./LiveMessage.svelte";
   import Button from "@smui/button";
-  let { entries, instanceId, expand, subscribeTool = () => {}, loadMore, hasMore, live, tools, toolDurations, streaming }: {
+  import { onDestroy, setContext } from "svelte";
+  import { SvelteSet } from "svelte/reactivity";
+  import { toolExpansionContext, type ToolExpansion } from "./entries/tools/types";
+  let { entries, instanceId, expand, subscribeTool = () => {}, objects = new Map(), canStreamTool = () => false,
+    calls = new Map(), loadMore, hasMore, live, tools, toolDurations, streaming }: {
     entries: ProjectedEntry[]; instanceId: string; expand: (id: string) => Promise<void>;
     subscribeTool?: (ids: string[], expanded: boolean) => void;
     loadMore: () => Promise<void>; hasMore: boolean;
     live: LiveMessage | null; tools: Map<string, ToolProgress>; streaming: boolean;
     toolDurations: Map<string, number>;
+    objects?: Map<string, CachedToolObject>;
+    canStreamTool?: (id: string) => boolean;
+    calls?: Map<string, Extract<LiveBlock, { type: "toolCall" }>>;
   } = $props();
+  const expandedTools = new SvelteSet<string>();
+  setContext<ToolExpansion>(toolExpansionContext, { ids: expandedTools,
+    get objects() { return objects; }, get canStreamTool() { return canStreamTool; } });
+  onDestroy(() => {
+    if (expandedTools.size) subscribeTool([...expandedTools], false);
+  });
   let loading = $state(false);
   async function older() { loading = true; try { await loadMore(); } finally { loading = false; } }
   let rows = $derived.by(() => {
@@ -60,7 +74,7 @@
         showHeader={roleOf(row) === undefined || roleOf(row) !== roleOf(rows[index - 1])} />
     {/if}
   {/each}
-  <LiveMessageView {live} {tools} {visibleToolCalls} {instanceId} {subscribeTool} showHeader={roleOf(rows.at(-1)) !== "assistant"} />
+  <LiveMessageView {live} {tools} {calls} {visibleToolCalls} {instanceId} {subscribeTool} showHeader={roleOf(rows.at(-1)) !== "assistant"} />
   {#if streaming}
     <div class="streaming-dots" role="status" aria-label="生成中">
       <span></span><span></span><span></span>

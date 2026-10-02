@@ -17,7 +17,6 @@ export type ProjectedAssistantEntry = Omit<MessageEntry, "message"> & {
 };
 export interface StreamOptions {
   toolOutputBytes: number;
-  expandedToolCalls?: string[];
 }
 export interface RedactedEntry {
   type: "redacted";

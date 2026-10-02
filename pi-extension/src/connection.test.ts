@@ -1,7 +1,7 @@
 import { expect, it, vi } from "vitest";
 import type { Handlers, RpcPeer } from "../../api/src/index.ts";
 import type { HostToServer, ServerToHost } from "../../api/src/host-protocol.ts";
-import type { SessionState } from "../../api/src/model.ts";
+import type { RuntimeSnapshot } from "../../api/src/sync.ts";
 
 const mock = vi.hoisted(() => ({ clients: [] as Array<{
   onStatus?: (status: "connecting" | "connected" | "disconnected", peer?: unknown) => void;
@@ -29,7 +29,7 @@ it("ignores late socket and RPC callbacks after shutdown, including a pending he
     const connection = new Connection("ws://localhost/api/host", {
       requests: { "host.sync": () => { handler(); throw new Error("Should not run"); } },
       notifications: { "host.viewers": () => { handler(); } },
-    }, () => ({} as SessionState), () => 0, status => statuses.push(status));
+    }, () => ({} as RuntimeSnapshot), () => 0, status => statuses.push(status));
     const client = mock.clients.at(-1)!;
     const callback = client.onStatus!;
     let finishHello!: (value: {}) => void;
@@ -52,4 +52,23 @@ it("ignores late socket and RPC callbacks after shutdown, including a pending he
   } finally {
     vi.useRealTimers();
   }
+});
+
+it("buffers observations while hello is pending instead of leaving a gap after its snapshot", async () => {
+  const connection = new Connection("ws://localhost/api/host", {},
+    () => ({ seq: 10 } as RuntimeSnapshot), () => 0, () => {});
+  const client = mock.clients.at(-1)!;
+  let finish!: (value: {}) => void;
+  const request = vi.fn(() => new Promise<{}>(resolve => { finish = resolve; }));
+  const notify = vi.fn();
+  const peer = { request, notify, close: vi.fn() } as unknown as RpcPeer<ServerToHost, HostToServer>;
+  client.onStatus!("connected", peer);
+  const params = { ops: [{ seq: 11, op: "set" as const, target: "leaf" as const, value: "e" }] };
+  connection.notify("session.ops", params);
+  expect(request.mock.calls[0]).toEqual(["host.hello", { protocolVersion: 1, runtime: { seq: 10 }, entryCount: 0 }]);
+  expect(notify).not.toHaveBeenCalled();
+  finish({});
+  await Promise.resolve();
+  expect(notify).toHaveBeenCalledWith("session.ops", params);
+  connection.stop();
 });

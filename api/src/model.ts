@@ -33,6 +33,8 @@ export interface SessionSummary extends Pick<SessionState, "instanceId" | "hostI
   lastActivityAt: string;
   entryCount: number;
 }
+// Preview bodies are fetched with the session list, not pushed with presence/status updates.
+export type SessionListing = Omit<SessionSummary, "messagePreview">;
 export interface Notice {
   level: "info" | "warning" | "error";
   message: string;

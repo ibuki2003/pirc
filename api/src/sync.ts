@@ -9,6 +9,7 @@ export type SyncOp = { seq: number } & (
   | { op: "append"; target: "live.content"; index: number; text: string }
   | { op: "set"; target: "tool"; key: string; value: ToolProgress | null }
   | { op: "set"; target: "toolDuration"; key: string; value: number }
+  | { op: "set"; target: "call"; key: string; value: Extract<LiveBlock, { type: "toolCall" }> }
   | { op: "reset" }
 );
 export type OpInput = SyncOp extends infer T ? T extends { seq: number } ? Omit<T, "seq"> : never : never;
@@ -20,8 +21,12 @@ export interface SessionSnapshot {
   entries: ProjectedEntry[];
   hasMoreBefore: boolean;
   mode: "delta" | "full";
+}
+export interface RuntimeSnapshot {
+  seq: number;
   state: SessionState;
   live: LiveMessage | null;
   tools: Record<string, ToolProgress>;
   toolDurations: Record<string, number>;
+  calls: Record<string, Extract<LiveBlock, { type: "toolCall" }>>;
 }

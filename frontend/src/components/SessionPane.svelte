@@ -35,8 +35,8 @@
   let switching = $state(false);
   let switchRequested = $state(false);
   let menuOpen = $state(false);
-  let canSwitch = $derived(!switchRequested && !store.mirror?.state.status.streaming);
-  let visibleSessions = $derived(saved.filter(item => !cwdOnly || item.cwd === store.mirror?.state.cwd));
+  let canSwitch = $derived(!switchRequested && !store.runtime?.state.status.streaming);
+  let visibleSessions = $derived(saved.filter(item => !cwdOnly || item.cwd === store.runtime?.state.cwd));
   async function openModal(kind: "new" | "resume") {
     modal = kind;
     modalError = "";
@@ -98,8 +98,8 @@
     store.start();
     return () => store.stop();
   });
-  let successor = $derived(store.closed && store.mirror
-    ? sessions.items.find(s => s.hostId === store.mirror!.state.hostId && s.instanceId !== instanceId)
+  let successor = $derived(store.closed && store.runtime
+    ? sessions.items.find(s => s.hostId === store.runtime!.state.hostId && s.instanceId !== instanceId)
     : undefined);
   $effect(() => {
     if (switchRequested && successor) onswitch(successor.instanceId);
@@ -117,13 +117,13 @@
         </IconButton>
         <Title class="session-title">
           <span class="session-heading">
-            {#if store.mirror?.state.name}<span class="session-name" title={store.mirror.state.name}>{store.mirror.state.name}</span>{/if}
-            {#if store.mirror?.state.name && store.mirror?.state.cwd}<span aria-hidden="true">·</span>{/if}
-            {#if store.mirror?.state.cwd}
-              <span class="session-cwd" title={store.mirror.state.cwd}>{store.mirror.state.cwd}</span>
-            {:else if !store.mirror?.state.name}<span>セッション</span>{/if}
+            {#if store.runtime?.state.name}<span class="session-name" title={store.runtime.state.name}>{store.runtime.state.name}</span>{/if}
+            {#if store.runtime?.state.name && store.runtime?.state.cwd}<span aria-hidden="true">·</span>{/if}
+            {#if store.runtime?.state.cwd}
+              <span class="session-cwd" title={store.runtime?.state.cwd}>{store.runtime?.state.cwd}</span>
+            {:else if !store.runtime?.state.name}<span>セッション</span>{/if}
           </span>
-          <small title={store.mirror?.state.sessionId || instanceId}>{store.mirror?.state.sessionId || instanceId}</small>
+          <small title={store.runtime?.state.sessionId || instanceId}>{store.runtime?.state.sessionId || instanceId}</small>
         </Title>
       </Section>
       {#if store.mirror && !store.closed}
@@ -181,13 +181,14 @@
   {/if}
   {#if store.error}<Banner open>{#snippet label()}<Label>{store.error}</Label>{/snippet}</Banner>{/if}
   {#each store.notices as notice}<Banner open>{#snippet label()}<Label>{notice.message}</Label>{/snippet}</Banner>{/each}
-  {#if store.mirror}
+  {#if store.mirror && store.runtime}
     <div class="scroll" bind:this={scrollElement} onscroll={trackScroll}>
       <Transcript entries={store.branch} {instanceId} expand={id => store.expandEntry(id)}
         subscribeTool={(ids, expanded) => store.setToolExpanded(ids, expanded)}
+        objects={store.objects} canStreamTool={id => store.canStreamTool(id)} calls={store.runtime.calls}
         loadMore={() => store.loadAncestors()} hasMore={store.mirror.hasMoreBefore}
-        live={store.mirror.live} tools={store.mirror.tools} toolDurations={store.mirror.toolDurations} streaming={store.mirror.state.status.streaming} />
+        live={store.runtime.live} tools={store.runtime.tools} toolDurations={store.runtime.toolDurations} streaming={store.runtime.state.status.streaming} />
     </div>
-    {#if !store.closed}<Composer {instanceId} sessionState={store.mirror.state} streaming={store.mirror.state.status.streaming} />{/if}
+    {#if !store.closed}<Composer {instanceId} sessionState={store.runtime.state} streaming={store.runtime.state.status.streaming} />{/if}
   {:else if store.loading}<p>セッションを読み込み中…</p>{/if}
 </div>

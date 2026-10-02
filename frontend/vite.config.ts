@@ -10,13 +10,13 @@ export default defineConfig({
     projects: [
       {
         extends: true,
-        test: { name: "unit", exclude: ["**/node_modules/**", "src/routes/GodMode.test.ts", "src/components/entries/tools/ToolCallView.test.ts"] },
+        test: { name: "unit", exclude: ["**/node_modules/**", "src/routes/GodMode.test.ts", "src/components/entries/tools/ToolCallView.test.ts", "src/components/Transcript.streaming.svelte.test.ts", "src/components/SessionPane.streaming.svelte.test.ts"] },
       },
       {
         extends: true,
         resolve: { conditions: ["browser"] },
         ssr: { resolve: { conditions: ["browser"] } },
-        test: { name: "ui", include: ["src/routes/GodMode.test.ts", "src/components/entries/tools/ToolCallView.test.ts"], environment: "jsdom" },
+        test: { name: "ui", include: ["src/routes/GodMode.test.ts", "src/components/entries/tools/ToolCallView.test.ts", "src/components/Transcript.streaming.svelte.test.ts", "src/components/SessionPane.streaming.svelte.test.ts"], environment: "jsdom" },
       },
     ],
   },

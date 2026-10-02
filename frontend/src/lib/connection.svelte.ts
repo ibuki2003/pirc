@@ -13,6 +13,8 @@ export class Connection {
       notifications: {
         "sessions.changed": p => this.emit(p, "sessions.changed"),
         "session.ops": p => this.emit(p, "session.ops"),
+        "session.runtime": p => this.emit(p, "session.runtime"),
+        "tool.object": p => this.emit(p, "tool.object"),
         "session.notice": p => this.emit(p, "session.notice"),
         "session.resync": p => this.emit(p, "session.resync"),
         "session.closed": p => this.emit(p, "session.closed"),
