@@ -1,4 +1,17 @@
-.transcript { display: grid; grid-template-columns: minmax(0, 1fr); gap: .75rem; }
+.transcript {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  padding-bottom: .5rem;
+
+  > article.entry { margin: .5rem 0 0; }
+  > article.entry + article.entry { margin-top: 1rem; }
+
+  @each $role in user, assistant, system {
+    > article.entry.#{$role} + article.entry.#{$role} { margin-top: 0; }
+  }
+
+  > article.entry + :not(article.entry) { margin-top: .5rem; }
+}
 
 .settings-change { padding-left: .75rem; }
 
