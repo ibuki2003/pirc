@@ -1,5 +1,7 @@
 {
   "imports": {
+    "ws": "npm:ws@8.22.0",
+    "@types/ws": "npm:@types/ws@8.18.1",
     "@pirc/api": "../api/src/index.ts",
     "@earendil-works/pi-coding-agent": "npm:@earendil-works/pi-coding-agent@0.87.1",
     "@std/http": "jsr:@std/http@^1.0.0",
@@ -9,7 +11,7 @@
     "dev": "deno run --watch --allow-net --allow-read --allow-env main.ts",
     "start": "deno run --allow-net --allow-read --allow-env main.ts",
     "check": "deno check main.ts test/*.ts",
-    "test": "deno test --allow-env test/"
+    "test": "deno test --allow-env --allow-net test/"
   },
   "compilerOptions": {
     "strict": true,

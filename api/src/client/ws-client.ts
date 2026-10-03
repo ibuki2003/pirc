@@ -31,6 +31,7 @@ export class WsClient<L extends Protocol, R extends Protocol> {
       if (this.stopped) { socket.close(); return; }
       this.attempts = 0;
       const transport: Transport = {
+        websocketCompression: socket.extensions?.split(",").some(extension => extension.trim().split(";")[0] === "permessage-deflate") ?? false,
         send: (data) => socket.send(data),
         close: (code, reason) => socket.close(code, reason),
         onMessage: (handler) => socket.addEventListener("message", (event) => handler(event.data)),

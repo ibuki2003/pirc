@@ -5,18 +5,19 @@ import { gzip, json } from "./compress.ts";
 import { allowedOrigin } from "./origin.ts";
 import { sessionRoute } from "./sessions.ts";
 import { staticFile } from "./static.ts";
-import { clientEndpoint } from "../ws/client-endpoint.ts";
-import { hostEndpoint } from "../ws/host-endpoint.ts";
 
 const sessionPattern = new URLPattern({ pathname: "/api/sessions/:iid/*" });
 export function router(
   registry: Registry,
   config: Config,
+  upgrade?: (req: Request) => Response,
 ): (req: Request) => Promise<Response> {
   return async (req) => {
     const url = new URL(req.url);
-    if (url.pathname === "/api/host" || url.pathname === "/api/ws" ||
-      url.pathname === "/api/notify") {
+    if (
+      url.pathname === "/api/host" || url.pathname === "/api/ws" ||
+      url.pathname === "/api/notify"
+    ) {
       if (req.headers.get("upgrade")?.toLowerCase() !== "websocket") {
         return new Response("WebSocket required", { status: 426 });
       }
@@ -28,9 +29,8 @@ export function router(
       if (url.pathname === "/api/notify" && req.headers.has("origin")) {
         return new Response("Forbidden origin", { status: 403 });
       }
-      return url.pathname === "/api/host"
-        ? hostEndpoint(req, registry)
-        : clientEndpoint(req, registry);
+      return upgrade?.(req) ??
+        new Response("WebSocket required", { status: 426 });
     }
     if (url.pathname.startsWith("/api/")) {
       if (req.method !== "GET") {

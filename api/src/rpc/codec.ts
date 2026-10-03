@@ -3,11 +3,11 @@ const COMPRESS_THRESHOLD = 4096;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
-export async function encodeFrame(message: unknown): Promise<string | Uint8Array> {
+export async function encodeFrame(message: unknown, websocketCompression = false): Promise<string | Uint8Array> {
   const json = JSON.stringify(message);
   const bytes = encoder.encode(json);
   if (bytes.byteLength > MAX_MESSAGE_BYTES) throw new Error("RPC message too large");
-  if (bytes.byteLength <= COMPRESS_THRESHOLD) return json;
+  if (websocketCompression || bytes.byteLength <= COMPRESS_THRESHOLD) return json;
   return new Uint8Array(await new Response(new Blob([Uint8Array.from(bytes).buffer]).stream().pipeThrough(new CompressionStream("gzip"))).arrayBuffer());
 }
 

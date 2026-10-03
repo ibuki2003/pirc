@@ -14,7 +14,9 @@
     "jsr:@std/net@^1.0.7": "1.0.7",
     "jsr:@std/path@^1.1.6": "1.1.6",
     "jsr:@std/streams@^1.2.0": "1.2.0",
-    "npm:@earendil-works/pi-coding-agent@0.87.1": "0.87.1"
+    "npm:@earendil-works/pi-coding-agent@0.87.1": "0.87.1_ws@8.22.0",
+    "npm:@types/ws@8.18.1": "8.18.1",
+    "npm:ws@8.22.0": "8.22.0"
   },
   "jsr": {
     "@std/assert@1.0.15": {
@@ -310,7 +312,7 @@
         "esbuild"
       ]
     },
-    "@earendil-works/pi-agent-core@0.87.1": {
+    "@earendil-works/pi-agent-core@0.87.1_ws@8.22.0": {
       "integrity": "sha512-Zev3B0HK7YS5A4EZQ2XnEqiJuirx6QBiltJ+LpmjV5a/+2IU0cfKtIfnkNkORK707XOvKBY2WRtk7cAwHpbh2Q==",
       "dependencies": [
         "@earendil-works/chord",
@@ -322,7 +324,7 @@
         "yaml"
       ]
     },
-    "@earendil-works/pi-ai@0.87.1": {
+    "@earendil-works/pi-ai@0.87.1_ws@8.22.0": {
       "integrity": "sha512-X/3PfQBnnoeVdO9Cv8zHghUMglzlgNZYGNzoPnbRoGnHl3Rw3TlA2UKSUB7BRHUOxMryHXYa8dnjWZlbRheDZA==",
       "dependencies": [
         "@anthropic-ai/sdk",
@@ -338,7 +340,7 @@
       ],
       "bin": true
     },
-    "@earendil-works/pi-coding-agent@0.87.1": {
+    "@earendil-works/pi-coding-agent@0.87.1_ws@8.22.0": {
       "integrity": "sha512-m8ArJUtVcQMSe1lLE/Ei7vX/JV7O39sWmWBsXV2NOU70F0qCp8GubA24pT3LnwTmM6LL2xV80/h6sQg85n69ew==",
       "dependencies": [
         "@earendil-works/chord",
@@ -603,6 +605,12 @@
     "@types/retry@0.12.0": {
       "integrity": "sha512-wWKOClTTiizcZhXnPY4wikVAwmdYHp8q6DmC+EJUzAMsycb7HB32Kh9RN4+0gExjmPmZSAQjgURXIGATPegAvA=="
     },
+    "@types/ws@8.18.1": {
+      "integrity": "sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==",
+      "dependencies": [
+        "@types/node"
+      ]
+    },
     "agent-base@7.1.4": {
       "integrity": "sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ=="
     },
@@ -851,8 +859,14 @@
         "formdata-polyfill"
       ]
     },
-    "openai@6.40.0": {
-      "integrity": "sha512-MWtTjd/gQt4jpbji61NTgFWJLoY/PdRJ6wG9/ZDRMYNMlBKrCrSlkLI+KgHP1vR1qT6LKSAyAqIxno6lcK9JiA=="
+    "openai@6.40.0_ws@8.22.0": {
+      "integrity": "sha512-MWtTjd/gQt4jpbji61NTgFWJLoY/PdRJ6wG9/ZDRMYNMlBKrCrSlkLI+KgHP1vR1qT6LKSAyAqIxno6lcK9JiA==",
+      "dependencies": [
+        "ws"
+      ],
+      "optionalPeers": [
+        "ws"
+      ]
     },
     "p-retry@4.6.2": {
       "integrity": "sha512-312Id396EbJdvRONlngUx0NydfrIQ5lsYu0znKVUzVvArzEIt08V1qhtyESbGVd1FGX7UKtiFp5uwKZdM8wIuQ==",
@@ -952,8 +966,8 @@
       ],
       "bin": true
     },
-    "ws@8.20.0": {
-      "integrity": "sha512-sAt8BhgNbzCtgGbt2OxmpuryO63ZoDk/sqaB/znQm94T4fCEsy/yV+7CdC1kJhOU9lboAEU7R3kquuycDoibVA=="
+    "ws@8.22.0": {
+      "integrity": "sha512-Ydggc987+RO0AnWtZ/7Wq9FtNvcrL1b/RO0ud9mWjUPgDrsAAwQSF51sm2hm1XofbU/4jkpGEsLFsZZxU+1DOg=="
     },
     "yaml@2.9.0": {
       "integrity": "sha512-2AvhNX3mb8zd6Zy7INTtSpl1F15HW6Wnqj0srWlkKLcpYl/gMIMJiyuGq2KeI2YFxUPjdlB+3Lc10seMLtL4cA==",
@@ -964,7 +978,9 @@
     "dependencies": [
       "jsr:@std/assert@1",
       "jsr:@std/http@1",
-      "npm:@earendil-works/pi-coding-agent@0.87.1"
+      "npm:@earendil-works/pi-coding-agent@0.87.1",
+      "npm:@types/ws@8.18.1",
+      "npm:ws@8.22.0"
     ]
   }
 }

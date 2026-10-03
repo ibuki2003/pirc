@@ -25,7 +25,7 @@ export class ClientConnection {
   constructor(
     private registry: Registry,
     transport: Transport,
-    private socket: WebSocket,
+    private socket: Pick<WebSocket, "bufferedAmount" | "close">,
   ) {
     const forward = <
       M extends

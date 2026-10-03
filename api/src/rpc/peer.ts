@@ -7,6 +7,8 @@ export interface Protocol {
   notifications: Record<string, unknown>;
 }
 export interface Transport {
+  /** Negotiated permessage-deflate; avoid compressing JSON twice. */
+  websocketCompression?: boolean;
   send(data: string | Uint8Array): void;
   close(code?: number, reason?: string): void;
   onMessage(handler: (data: string | Blob | ArrayBuffer | ArrayBufferView) => void): void;
@@ -58,7 +60,7 @@ export class RpcPeer<L extends Protocol, R extends Protocol> {
   }
   private send(message: unknown): void {
     this.sendQueue = this.sendQueue.then(async () => {
-      if (!this.closed) this.transport.send(await encodeFrame(message));
+      if (!this.closed) this.transport.send(await encodeFrame(message, this.transport.websocketCompression));
     }).catch(() => this.close("Send failed"));
   }
   private async receive(message: unknown): Promise<void> {
