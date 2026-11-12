@@ -41,10 +41,17 @@ export async function fileResponse(
     }
     partial = true;
   }
+  const filename = file.path.split(/[\\/]/).at(-1)!;
+  const fallback = filename.replace(/[^\x20-\x7e]|["\\]/g, "_");
+  const encoded = encodeURIComponent(filename).replace(
+    /['()*]/g,
+    (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
   const headers = new Headers({
     "Content-Type": contentType(file.path.split(".").at(-1) ?? "") ??
       "application/octet-stream",
-    "Content-Disposition": "inline",
+    "Content-Disposition":
+      `inline; filename="${fallback}"; filename*=UTF-8''${encoded}`,
     "Content-Length": String(Math.max(0, end - offset + 1)),
     "Accept-Ranges": "bytes",
     "Cache-Control": "no-store",
