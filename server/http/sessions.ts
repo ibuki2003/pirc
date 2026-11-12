@@ -9,6 +9,7 @@ import {
 } from "../core/projection.ts";
 import type { Registry } from "../core/registry.ts";
 import { json } from "./compress.ts";
+import { fileResponse } from "./files.ts";
 
 function integer(value: string | null, fallback?: number): number {
   if (value === null && fallback !== undefined) return fallback;
@@ -33,6 +34,7 @@ export async function sessionRoute(
   const id = decodeURIComponent(match.pathname.groups.iid!);
   const host = registry.host(id);
   const path = url.pathname;
+  if (path.endsWith("/file")) return fileResponse(req, host);
   const entryMatch = new URLPattern({
     pathname: "/api/sessions/:iid/entries/:eid",
   }).exec(url);

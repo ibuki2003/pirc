@@ -5,6 +5,7 @@
   import { markdown } from "../../lib/markdown.ts";
   import BlobImage from "./BlobImage.svelte";
   import HistoryToolView from "./tools/HistoryToolView.svelte";
+  import CopyMarkdown from "../CopyMarkdown.svelte";
   type Call = Extract<ProjectedAssistantEntry["message"]["content"][number], { type: "toolCall" }>;
   let { item, results, instanceId, expand, subscribeTool = () => {}, tools, toolDurations, showHeader = true }: {
     item: ProjectedEntry; results: ProjectedEntry[]; instanceId: string; expand: (id: string) => Promise<void>;
@@ -14,6 +15,11 @@
     showHeader?: boolean;
   } = $props();
   let entry = $derived(item.entry);
+  let sourceText = $derived.by(() => {
+    if (entry.type !== "message" || entry.message.role === "toolResult" || !("content" in entry.message)) return "";
+    const content = entry.message.content;
+    return typeof content === "string" ? content : content.filter(block => block.type === "text").map(block => block.text).join("\n\n");
+  });
   let timestamp = $derived.by(() => {
     const date = new Date(entry.timestamp);
     const pad = (value: number) => String(value).padStart(2, "0");
@@ -52,6 +58,7 @@
   {:else}
     <small class="entry-timestamp">{timestamp}</small>
   {/if}
+  {#if sourceText}<CopyMarkdown text={sourceText} />{/if}
   {#if entry.type === "redacted"}
     {#if entry.role === "bashExecution"}
       <details class="tool" class:tool-error={entry.isError} open={bashOpen} ontoggle={e => {
@@ -75,9 +82,9 @@
       {:else if "content" in entry.message}
         {#each typeof entry.message.content === "string" ? [{ type: "text" as const, text: entry.message.content }] : entry.message.content as block, index}
           {#if block.type === "text"}
-            <div class="markdown">{@html markdown(block.text)}</div>
+            <div class="markdown">{@html markdown(block.text, instanceId)}</div>
           {:else if block.type === "thinking"}
-            <small class="muted-meta thinking-content markdown">{@html markdown(block.thinking)}</small>
+            <small class="muted-meta thinking-content markdown">{@html markdown(block.thinking, instanceId)}</small>
           {:else if block.type === "image"}
             <BlobImage {instanceId} entryId={entry.id} path={["message", "content", index, "data"]} />
           {:else if block.type === "toolCall"}
@@ -91,7 +98,7 @@
     {/if}
   {:else if entry.type === "compaction" || entry.type === "branch_summary"}
     <details><summary>{entry.type === "compaction" ? "圧縮" : "枝の要約"}</summary>
-      <div class="markdown">{@html markdown(entry.summary)}</div>
+      <div class="markdown">{@html markdown(entry.summary, instanceId)}</div>
     </details>
   {:else if entry.type === "custom_message"}
     {#if entry.display}<header>{entry.customType}</header><pre>{typeof entry.content === "string" ? entry.content : JSON.stringify(entry.content)}</pre>{/if}

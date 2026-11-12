@@ -12,6 +12,7 @@ export default defineConfig({
         extends: true,
         test: {
           name: "unit", exclude: [
+            "src/components/CopyMarkdown.svelte.test.ts",
             "**/node_modules/**",
             "src/routes/GodMode.test.ts",
             "src/components/entries/tools/ToolCallView.test.ts",
@@ -27,6 +28,7 @@ export default defineConfig({
         ssr: { resolve: { conditions: ["browser"] } },
         test: {
           name: "ui", include: [
+            "src/components/CopyMarkdown.svelte.test.ts",
             "src/routes/GodMode.test.ts",
             "src/components/entries/tools/ToolCallView.test.ts",
             "src/components/Transcript.streaming.svelte.test.ts",

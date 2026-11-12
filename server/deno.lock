@@ -978,6 +978,7 @@
     "dependencies": [
       "jsr:@std/assert@1",
       "jsr:@std/http@1",
+      "jsr:@std/media-types@^1.1.0",
       "npm:@earendil-works/pi-coding-agent@0.87.1",
       "npm:@types/ws@8.18.1",
       "npm:ws@8.22.0"

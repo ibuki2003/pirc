@@ -28,3 +28,20 @@ test("HTML in code is escaped once and Markdown links are sanitized", () => {
   expect(markdown("```html\n<div>\n```")).toContain("&lt;div&gt;");
   expect(markdown("[unsafe](javascript:alert(1))")).not.toContain('href="javascript:');
 });
+
+test("local links and images are proxied with their original paths in titles", () => {
+  const container = document.createElement("div");
+  container.innerHTML = markdown('[PDF](/tmp/a%20b.pdf#page=2 "資料") ![画像](./out.png)', "i");
+  const link = container.querySelector("a")!;
+  expect(link.getAttribute("href")).toBe("/api/sessions/i/file?path=%2Ftmp%2Fa%20b.pdf#page=2");
+  expect(link.title).toBe("資料\n/tmp/a b.pdf");
+  expect(link.target).toBe("_blank");
+  const image = container.querySelector("img")!;
+  expect(image.getAttribute("src")).toBe("/api/sessions/i/file?path=.%2Fout.png");
+  expect(image.title).toBe("./out.png");
+});
+
+test("URLs, anchors, plain paths and code are not rewritten", () => {
+  const text = "[web](https://example.com/a.pdf) ![remote](//example.com/a.png) [anchor](#section) `/tmp/a.pdf` /tmp/b.pdf";
+  expect(markdown(text, "i")).toBe(markdown(text));
+});

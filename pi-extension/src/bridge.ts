@@ -4,6 +4,7 @@ import type { Handlers, OpInput, SessionSnapshot } from "../../api/src/index.ts"
 import type { ServerToHost } from "../../api/src/host-protocol.ts";
 import { Connection } from "./connection.ts";
 import { controls } from "./controls.ts";
+import { readFileChunk } from "./files.ts";
 import { EntryTracker } from "./entry-tracker.ts";
 import { host } from "./host-id.ts";
 import { LiveTracker } from "./live-tracker.ts";
@@ -44,6 +45,7 @@ export class Bridge {
     this.outbox = new Outbox(previous?.seq ?? 0, () => this.reconcile(), ops => this.connection.notify("session.ops", { ops }));
     const handlers: Handlers<ServerToHost> = {
       requests: {
+        "host.file": params => readFileChunk(this.ctx.cwd, params),
         "host.sync": ({ since, branchLimit }): SessionSnapshot => {
           this.outbox.flush();
           return { ...this.entries.snapshot(since, branchLimit), seq: this.outbox.sequence };

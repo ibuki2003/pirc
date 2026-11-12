@@ -19,6 +19,7 @@ export interface HostToServer {
 }
 export interface ServerToHost {
   requests: {
+    "host.file": { params: { path: string; offset: number; length: number }; result: { path: string; size: number; data: string } };
     "host.sync": { params: { since?: number; branchLimit: number }; result: SessionSnapshot };
     "host.branch": { params: { leafId: string; limit: number }; result: { entries: ProjectedEntry[]; hasMoreBefore: boolean } };
     "host.entry": { params: { entryId: string }; result: { index: number; entry: SessionEntry } };
