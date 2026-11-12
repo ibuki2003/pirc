@@ -7,6 +7,7 @@ import {
   type StreamOptions,
   type SyncOp,
   type ToolObjectEvent,
+  type ClientToServer,
 } from "@pirc/api";
 import { projectOps, streamKey } from "./projection.ts";
 import type { HostConnection } from "./host-connection.ts";
@@ -16,9 +17,13 @@ import { sessionListing } from "./summary.ts";
 export class Registry {
   private hosts = new Map<string, HostConnection>();
   private subscribers = new Map<ClientConnection, Map<string, string>>();
-  private completionSubscribers = new Set<ClientConnection>();
+  private completionSubscribers = new Map<ClientConnection, {
+    options: ClientToServer["requests"]["sessions.subscribeCompletions"]["params"];
+    pending: Map<string, Set<ReturnType<typeof setTimeout>>>;
+  }>();
   private viewers = new Map<string, Set<ClientConnection>>();
   private offline = new Set<string>();
+  private lastActivity = new Map<string, number>();
   private changedTimer?: ReturnType<typeof setTimeout>;
   list(): SessionSummary[] {
     return [...this.hosts.values()].map((h) => h.summary);
@@ -57,12 +62,14 @@ export class Registry {
     const id = host.summary.instanceId;
     if (this.hosts.get(id) !== host) return;
     this.hosts.delete(id);
+    this.cancelCompletions(id);
     if (!reason) {
       this.offline.add(id);
       this.changed();
       return;
     }
     this.offline.delete(id);
+    this.lastActivity.delete(id);
     for (const client of this.viewers.get(id) ?? []) {
       if (reason) client.closed(id, reason, host.summary.hostId);
       client.forget(id);
@@ -78,14 +85,50 @@ export class Registry {
   unsubscribe(client: ClientConnection): void {
     this.subscribers.delete(client);
   }
-  subscribeCompletions(client: ClientConnection): void {
-    this.completionSubscribers.add(client);
+  subscribeCompletions(client: ClientConnection, options: ClientToServer["requests"]["sessions.subscribeCompletions"]["params"]): void {
+    for (const seconds of [options.activityWindowSeconds, options.delaySeconds]) {
+      if (!Number.isFinite(seconds) || seconds < 0 || seconds * 1000 > 2147483647) {
+        throw new Error("Completion timing must be between 0 and 2147483.647 seconds");
+      }
+    }
+    this.unsubscribeCompletions(client);
+    this.completionSubscribers.set(client, { options, pending: new Map() });
   }
   unsubscribeCompletions(client: ClientConnection): void {
+    const subscription = this.completionSubscribers.get(client);
+    if (subscription) {
+      for (const timers of subscription.pending.values()) for (const timer of timers) clearTimeout(timer);
+    }
     this.completionSubscribers.delete(client);
   }
   completed(session: Pick<SessionSummary, "instanceId" | "hostname" | "cwd" | "name">): void {
-    for (const client of this.completionSubscribers) client.completed(session);
+    const at = this.lastActivity.get(session.instanceId);
+    for (const [client, { options, pending }] of this.completionSubscribers) {
+      if (at !== undefined && Date.now() - at <= options.activityWindowSeconds * 1000 && options.activityWindowSeconds > 0) continue;
+      if (options.delaySeconds === 0) {
+        client.completed(session);
+        continue;
+      }
+      let timers = pending.get(session.instanceId);
+      if (!timers) pending.set(session.instanceId, timers = new Set());
+      const timer = setTimeout(() => {
+        timers.delete(timer);
+        if (!timers.size) pending.delete(session.instanceId);
+        client.completed(session);
+      }, options.delaySeconds * 1000);
+      timers.add(timer);
+    }
+  }
+  private cancelCompletions(id: string): void {
+    for (const { pending } of this.completionSubscribers.values()) {
+      for (const timer of pending.get(id) ?? []) clearTimeout(timer);
+      pending.delete(id);
+    }
+  }
+  activity(id: string): void {
+    this.host(id);
+    this.lastActivity.set(id, Date.now());
+    this.cancelCompletions(id);
   }
   attach(client: ClientConnection, id: string, stream: StreamOptions): void {
     this.host(id);

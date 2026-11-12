@@ -12,12 +12,26 @@ Deno.test("notification title uses cwd basename and hostname", () => {
   assertEquals(title(completion), "[pi] ready (project@host)");
 });
 
-Deno.test("assistant text excludes non-text blocks and truncates by characters", () => {
+Deno.test("assistant text excludes non-text blocks and truncates within the UTF-8 byte limit", () => {
   const item = entry("a", null, "assistant", "🙂".repeat(4001));
   if (item.entry.type !== "message" || item.entry.message.role !== "assistant") throw new Error("Invalid test entry");
   item.entry.message.content.push({ type: "toolCall", id: "t", name: "bash", arguments: {} });
-  assertEquals(assistantText([item])?.length, 8000);
-  assertEquals(Array.from(assistantText([item]) ?? "").length, 4000);
+  assertEquals(assistantText([item]), "🙂".repeat(1023) + "…");
+});
+
+Deno.test("notification byte limit preserves exact boundaries and multibyte characters", () => {
+  for (const text of ["a".repeat(4096), "🙂".repeat(1024), "あ".repeat(1365) + "a"]) {
+    assertEquals(assistantText([entry("a", null, "assistant", text)]), text);
+  }
+  for (const [text, expected] of [
+    ["a".repeat(4097), "a".repeat(4093) + "…"],
+    ["あ".repeat(2000), "あ".repeat(1364) + "…"],
+    ["a".repeat(4092) + "🙂a", "a".repeat(4092) + "…"],
+  ]) {
+    const result = assistantText([entry("a", null, "assistant", text)]);
+    assertEquals(result, expected);
+    assertEquals(new TextEncoder().encode(result).length <= 4096, true);
+  }
 });
 
 Deno.test("finds last assistant message across branch pages", async () => {
@@ -60,3 +74,4 @@ Deno.test("sends assistant text to ntfy and reports failed responses", async () 
     globalThis.fetch = original;
   }
 });
+

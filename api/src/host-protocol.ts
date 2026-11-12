@@ -12,6 +12,7 @@ export interface HostToServer {
     ping: { params: Record<string, never>; result: Record<string, never> };
   };
   notifications: {
+    "host.activity": Record<string, never>;
     "host.close": { reason: CloseReason; targetSessionFile?: string };
     "session.ops": { ops: SyncOp[] };
     "session.notice": Notice;

@@ -10,9 +10,10 @@ type Forward<M extends keyof HostRequests> = {
 };
 export interface ClientToServer {
   requests: {
+    "session.activity": { params: { instanceId: string }; result: Record<string, never> };
     "sessions.subscribe": { params: Record<string, never>; result: SessionListing[] };
     "sessions.unsubscribe": { params: Record<string, never>; result: Record<string, never> };
-    "sessions.subscribeCompletions": { params: Record<string, never>; result: Record<string, never> };
+    "sessions.subscribeCompletions": { params: { activityWindowSeconds: number; delaySeconds: number }; result: Record<string, never> };
     "sessions.unsubscribeCompletions": { params: Record<string, never>; result: Record<string, never> };
     "session.attach": { params: { instanceId: string; stream: StreamOptions }; result: Record<string, never> };
     "session.detach": { params: { instanceId: string }; result: Record<string, never> };

@@ -37,6 +37,21 @@
   let switchRequested = $state(false);
   let menuOpen = $state(false);
   let displayOptions = $state<DisplayOptions>({ ...defaultDisplayOptions });
+  function watchActivity(node: HTMLElement) {
+    let lastSent = -Infinity;
+    const report = () => {
+      const now = Date.now();
+      if (document.hidden || !connection.peer || now - lastSent < 5000) return;
+      lastSent = now;
+      void connection.peer.request("session.activity", { instanceId }).catch(() => {});
+    };
+    // Scroll events also fire during automatic following; observe user input instead.
+    const events = ["keydown", "pointerdown", "wheel", "touchmove"] as const;
+    for (const event of events) node.addEventListener(event, report, { capture: true, passive: true });
+    return { destroy() {
+      for (const event of events) node.removeEventListener(event, report, true);
+    } };
+  }
   let canSwitch = $derived(!switchRequested && !store.runtime?.state.status.streaming);
   let visibleSessions = $derived(saved.filter(item => !cwdOnly || item.cwd === store.runtime?.state.cwd));
   async function openModal(kind: "new" | "resume") {
@@ -107,7 +122,7 @@
     if (switchRequested && successor) onswitch(successor.instanceId);
   });
 </script>
-<div class="view">
+<div class="view" use:watchActivity>
   {#if header}
     {@render header(store)}
   {:else}

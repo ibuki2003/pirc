@@ -9,7 +9,24 @@ import {
 
 type Completion = ServerToClient["notifications"]["session.completed"];
 const PAGE_SIZE = 50;
-const MAX_CHARS = 4000;
+// https://docs.ntfy.sh/publish/#attach-local-file
+const MAX_MESSAGE_BYTES = 4096;
+
+function notificationText(text: string): string {
+  const encoder = new TextEncoder();
+  if (encoder.encode(text).length <= MAX_MESSAGE_BYTES) return text;
+  const suffix = "…";
+  const budget = MAX_MESSAGE_BYTES - encoder.encode(suffix).length;
+  let bytes = 0;
+  let result = "";
+  for (const character of text) {
+    const length = encoder.encode(character).length;
+    if (bytes + length > budget) break;
+    result += character;
+    bytes += length;
+  }
+  return result + suffix;
+}
 
 export function title(session: Completion): string {
   return `[pi] ready (${basename(session.cwd)}@${session.hostname})`;
@@ -22,7 +39,7 @@ export function assistantText(entries: ProjectedEntry[]): string | undefined {
     const text = entry.message.content
       .flatMap(block => block.type === "text" ? [block.text] : [])
       .join("\n").trim();
-    return Array.from(text).slice(0, MAX_CHARS).join("");
+    return notificationText(text);
   }
 }
 
@@ -61,6 +78,17 @@ if (import.meta.main) {
   const httpUrl = new URL(url);
   httpUrl.protocol = url.protocol === "wss:" ? "https:" : "http:";
   const http = new HttpClient(httpUrl.origin);
+  const seconds = (name: string, fallback: number): number => {
+    const value = Number(Deno.env.get(name) ?? fallback);
+    if (!Number.isFinite(value) || value < 0 || value * 1000 > 2147483647) {
+      throw new Error(`${name} must be between 0 and 2147483.647 seconds`);
+    }
+    return value;
+  };
+  const timings = {
+    activityWindowSeconds: seconds("PIRC_NOTIFY_ACTIVE_SECONDS", 10),
+    delaySeconds: seconds("PIRC_NOTIFY_DELAY_SECONDS", 30),
+  };
 
   const client = new WsClient<ServerToClient, ClientToServer>(url.href, {
     requests: { ping: () => ({}) },
@@ -72,7 +100,7 @@ if (import.meta.main) {
   });
   client.onStatus = (status, peer) => {
     if (status === "connected") {
-      void peer!.request("sessions.subscribeCompletions", {}).catch(error => {
+      void peer!.request("sessions.subscribeCompletions", timings).catch(error => {
         console.error("Completion subscription failed:", error);
         peer!.close();
       });

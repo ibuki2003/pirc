@@ -5,6 +5,7 @@ import type { ServerToHost } from "../../api/src/host-protocol.ts";
 import { Connection } from "./connection.ts";
 import { controls } from "./controls.ts";
 import { readFileChunk } from "./files.ts";
+import { watchTerminalActivity } from "./activity.ts";
 import { EntryTracker } from "./entry-tracker.ts";
 import { host } from "./host-id.ts";
 import { LiveTracker } from "./live-tracker.ts";
@@ -22,6 +23,7 @@ export class Bridge {
   private connection: Connection;
   private poll: ReturnType<typeof setInterval>;
   private stopped = false;
+  private unwatchInput?: () => void;
   private viewers = 0;
   private status: "connecting" | "connected" | "disconnected" = "disconnected";
   readonly instanceId: string;
@@ -70,6 +72,11 @@ export class Bridge {
       this.status = status; this.footer();
     });
     this.connection.start();
+    if (ctx.mode === "tui") {
+      this.unwatchInput = watchTerminalActivity(ctx.ui, () => {
+        if (this.status === "connected") this.connection.notify("host.activity", {});
+      });
+    }
     this.poll = setInterval(() => { if (!this.stopped) this.outbox.flush(); }, 1000);
   }
   reconcile(): void {
@@ -92,6 +99,7 @@ export class Bridge {
   stop(event: SessionShutdownEvent): void {
     if (this.stopped) return;
     this.stopped = true;
+    this.unwatchInput?.();
     clearInterval(this.poll);
     this.live.stop();
     this.outbox.flush();

@@ -41,6 +41,65 @@ function pair(): [Transport, Transport] {
 }
 afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks(); });
 
+test("only visible user interactions report session activity, with throttling", async () => {
+  vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} });
+  const state: SessionState = {
+    instanceId: "i", hostId: "h", hostname: "box", sessionId: "s", piVersion: "1", cwd: "/repo",
+    availableThinkingLevels: [], status: { streaming: false, compacting: false, pendingMessages: false },
+  };
+  const snapshot = { seq: 0, state, live: null, calls: {}, tools: {}, toolDurations: {} };
+  mock.getSync.mockResolvedValue({
+    seq: 0, entryCount: 0, leafId: null, lastEntryId: null,
+    hasMoreBefore: false, mode: "full", entries: [],
+  });
+  const [serverTransport, browserTransport] = pair();
+  const activity = vi.fn((_params: { instanceId: string }) => ({}));
+  let server!: RpcPeer<ClientToServer, ServerToClient>;
+  mock.peer = handlers => {
+    server = new RpcPeer(serverTransport, { requests: {
+      "session.attach": () => { server.notify("session.runtime", { instanceId: "i", snapshot }); return {}; },
+      "session.detach": () => ({}),
+      "session.activity": activity,
+      ping: () => ({}),
+    } });
+    return new RpcPeer<ServerToClient, ClientToServer>(browserTransport, handlers);
+  };
+  let now = Date.now();
+  const clock = vi.spyOn(Date, "now").mockImplementation(() => now);
+  const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(false);
+  const target = document.createElement("div");
+  const component = mount(SessionPane, { target, props: { instanceId: "i", onswitch: () => {} } });
+  try {
+    connection.start();
+    flushSync();
+    await vi.waitFor(() => expect(target.querySelector(".transcript")).not.toBeNull());
+    const view = target.querySelector(".view")!;
+    view.dispatchEvent(new Event("scroll"));
+    await connection.peer!.request("ping", {});
+    expect(activity).not.toHaveBeenCalled();
+    view.dispatchEvent(new Event("wheel"));
+    view.dispatchEvent(new Event("keydown"));
+    await connection.peer!.request("ping", {});
+    expect(activity).toHaveBeenCalledTimes(1);
+    expect(activity.mock.calls[0][0]).toEqual({ instanceId: "i" });
+    now += 5000;
+    hidden.mockReturnValue(true);
+    view.dispatchEvent(new Event("pointerdown"));
+    await connection.peer!.request("ping", {});
+    expect(activity).toHaveBeenCalledTimes(1);
+    hidden.mockReturnValue(false);
+    view.dispatchEvent(new Event("touchmove"));
+    await connection.peer!.request("ping", {});
+    expect(activity).toHaveBeenCalledTimes(2);
+  } finally {
+    await unmount(component);
+    connection.stop();
+    server?.close();
+    hidden.mockRestore();
+    clock.mockRestore();
+  }
+});
+
 test.each([
   { name: "bash", args: { command: "echo result" }, available: true },
   { name: "apply_patch", args: { patch: "*** Begin Patch\n*** Update File: a.ts\n@@\n-old\n+new\n*** End Patch" }, available: true },

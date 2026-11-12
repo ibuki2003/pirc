@@ -52,6 +52,9 @@ export class HostConnection {
         },
       },
       notifications: {
+        "host.activity": () => {
+          if (this.registered) this.registry.activity(this.summary.instanceId);
+        },
         "host.close": ({ reason }) => {
           if (this.registered) this.registry.unregister(this, reason);
           this.close();

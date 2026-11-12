@@ -46,13 +46,17 @@ export class ClientConnection {
     };
     this.peer = new RpcPeer(transport, {
       requests: {
+        "session.activity": ({ instanceId }) => {
+          this.registry.activity(instanceId);
+          return {};
+        },
         "sessions.subscribe": () => this.registry.subscribe(this),
         "sessions.unsubscribe": () => {
           this.registry.unsubscribe(this);
           return {};
         },
-        "sessions.subscribeCompletions": () => {
-          this.registry.subscribeCompletions(this);
+        "sessions.subscribeCompletions": (options) => {
+          this.registry.subscribeCompletions(this, options);
           return {};
         },
         "sessions.unsubscribeCompletions": () => {
