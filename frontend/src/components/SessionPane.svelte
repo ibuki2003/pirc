@@ -4,6 +4,7 @@
   import { MirrorStore } from "../lib/mirror/mirror-store.svelte.ts";
   import { sessions } from "../lib/sessions.svelte.ts";
   import { connection } from "../lib/connection.svelte.ts";
+  import { defaultDisplayOptions, type DisplayOptions } from "../lib/display-options.ts";
   import type { ClientToServer } from "@pirc/api";
   import Transcript from "./Transcript.svelte";
   import Composer from "./Composer.svelte";
@@ -16,7 +17,7 @@
   import Checkbox from "@smui/checkbox";
   import FormField from "@smui/form-field";
   import Button from "@smui/button";
-  import { mdiArrowLeft, mdiDotsVertical } from "@mdi/js";
+  import { mdiArrowLeft, mdiDotsVertical, mdiRestore } from "@mdi/js";
   let { instanceId, header, onswitch }: {
     instanceId: string;
     header?: Snippet<[MirrorStore]>;
@@ -35,6 +36,7 @@
   let switching = $state(false);
   let switchRequested = $state(false);
   let menuOpen = $state(false);
+  let displayOptions = $state<DisplayOptions>({ ...defaultDisplayOptions });
   let canSwitch = $derived(!switchRequested && !store.runtime?.state.status.streaming);
   let visibleSessions = $derived(saved.filter(item => !cwdOnly || item.cwd === store.runtime?.state.cwd));
   async function openModal(kind: "new" | "resume") {
@@ -145,6 +147,19 @@
     </Row>
   </TopAppBar>
   {/if}
+  <div class="display-controls" role="group" aria-label="メッセージの表示設定">
+    {#each [{ key: "tools", label: "Tool" }, { key: "thinking", label: "Thinking" }, { key: "system", label: "System" }] as option}
+      {@const key = option.key as keyof DisplayOptions}
+      <Button class={displayOptions[key] ? "display-toggle active" : "display-toggle"}
+        aria-pressed={displayOptions[key]} title={`${option.label} の表示を切り替え`}
+        onclick={() => displayOptions[key] = !displayOptions[key]}>{option.label}</Button>
+    {/each}
+    <IconButton class="display-reset" aria-label="表示設定をデフォルトに戻す" title="表示設定をデフォルトに戻す"
+      disabled={displayOptions.tools && displayOptions.thinking && displayOptions.system}
+      onclick={() => displayOptions = { ...defaultDisplayOptions }}>
+      <Icon tag="svg" viewBox="0 0 24 24"><path d={mdiRestore} /></Icon>
+    </IconButton>
+  </div>
   <Dialog bind:open={dialogOpen} class="session-dialog" aria-label={modal === "new" ? "新しいセッション" : "セッションを再開"}>
     <DialogTitle>{modal === "new" ? "新しいセッション" : "セッションを再開"}</DialogTitle>
     <Content>
@@ -184,6 +199,7 @@
   {#if store.mirror && store.runtime}
     <div class="scroll" bind:this={scrollElement} onscroll={trackScroll}>
       <Transcript entries={store.branch} {instanceId} expand={id => store.expandEntry(id)}
+        {displayOptions}
         subscribeTool={(ids, expanded) => store.setToolExpanded(ids, expanded)}
         objects={store.objects} canStreamTool={id => store.canStreamTool(id)} calls={store.runtime.calls}
         loadMore={() => store.loadAncestors()} hasMore={store.mirror.hasMoreBefore}

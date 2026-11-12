@@ -5,16 +5,19 @@
   import ToolCallView from "./entries/tools/ToolCallView.svelte";
   import { liveToolDisplay } from "./entries/tools/live-tool";
   import CopyMarkdown from "./CopyMarkdown.svelte";
-  let { live, tools, calls = new Map(), visibleToolCalls, instanceId, subscribeTool = () => {}, showHeader = true }: {
+  import { defaultDisplayOptions, type DisplayOptions } from "../lib/display-options.ts";
+  let { live, tools, calls = new Map(), visibleToolCalls, instanceId, subscribeTool = () => {}, showHeader = true, displayOptions = defaultDisplayOptions }: {
+    displayOptions?: DisplayOptions;
     live: LiveMessage | null; tools: Map<string, ToolProgress>; visibleToolCalls: Set<string>; instanceId: string;
     subscribeTool?: (ids: string[], expanded: boolean) => void; showHeader?: boolean
     calls?: Map<string, Extract<LiveBlock, { type: "toolCall" }>>;
   } = $props();
   const visibleBlocks = $derived(live?.content.filter(block =>
-    block.type !== "toolCall" || !visibleToolCalls.has(block.id)) ?? []);
+    block.type === "thinking" ? displayOptions.thinking :
+    block.type === "toolCall" ? displayOptions.tools && !visibleToolCalls.has(block.id) : true) ?? []);
   const sourceText = $derived(live?.content.filter(block => block.type === "text").map(block => block.text).join("\n\n") ?? "");
-  const orphanTools = $derived([...tools.entries()].filter(([id]) =>
-    !visibleToolCalls.has(id) && !live?.content.some(block => block.type === "toolCall" && block.id === id)));
+  const orphanTools = $derived(displayOptions.tools ? [...tools.entries()].filter(([id]) =>
+    !visibleToolCalls.has(id) && !live?.content.some(block => block.type === "toolCall" && block.id === id)) : []);
 </script>
 {#if live && (!live.content.length || visibleBlocks.length)}
   <article class="entry assistant live">

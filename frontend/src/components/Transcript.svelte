@@ -8,8 +8,10 @@
   import { onDestroy, setContext } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
   import { toolExpansionContext, type ToolExpansion } from "./entries/tools/types";
+  import { defaultDisplayOptions, showEntry, type DisplayOptions } from "../lib/display-options.ts";
   let { entries, instanceId, expand, subscribeTool = () => {}, objects = new Map(), canStreamTool = () => false,
-    calls = new Map(), loadMore, hasMore, live, tools, toolDurations, streaming }: {
+    calls = new Map(), loadMore, hasMore, live, tools, toolDurations, streaming, displayOptions = defaultDisplayOptions }: {
+    displayOptions?: DisplayOptions;
     entries: ProjectedEntry[]; instanceId: string; expand: (id: string) => Promise<void>;
     subscribeTool?: (ids: string[], expanded: boolean) => void;
     loadMore: () => Promise<void>; hasMore: boolean;
@@ -31,6 +33,7 @@
     const rows: ({ kind: "entry"; item: ProjectedEntry } | { kind: "settings"; id: string; model?: string; thinking?: string })[] = [];
     let previousWasSettings = false;
     for (const item of entries) {
+      if (!showEntry(item, displayOptions)) continue;
       const entry = item.entry;
       if (entry.type === "model_change" || entry.type === "thinking_level_change") {
         const last = rows.at(-1);
@@ -71,10 +74,11 @@
       </small>
     {:else}
       <EntryView item={row.item} results={entries} {instanceId} {expand} {subscribeTool} {tools} {toolDurations}
+        {displayOptions}
         showHeader={roleOf(row) === undefined || roleOf(row) !== roleOf(rows[index - 1])} />
     {/if}
   {/each}
-  <LiveMessageView {live} {tools} {calls} {visibleToolCalls} {instanceId} {subscribeTool} showHeader={roleOf(rows.at(-1)) !== "assistant"} />
+  <LiveMessageView {live} {tools} {calls} {visibleToolCalls} {instanceId} {subscribeTool} {displayOptions} showHeader={roleOf(rows.at(-1)) !== "assistant"} />
   {#if streaming}
     <div class="streaming-dots" role="status" aria-label="生成中">
       <span></span><span></span><span></span>

@@ -6,8 +6,10 @@
   import BlobImage from "./BlobImage.svelte";
   import HistoryToolView from "./tools/HistoryToolView.svelte";
   import CopyMarkdown from "../CopyMarkdown.svelte";
+  import { defaultDisplayOptions, type DisplayOptions } from "../../lib/display-options.ts";
   type Call = Extract<ProjectedAssistantEntry["message"]["content"][number], { type: "toolCall" }>;
-  let { item, results, instanceId, expand, subscribeTool = () => {}, tools, toolDurations, showHeader = true }: {
+  let { item, results, instanceId, expand, subscribeTool = () => {}, tools, toolDurations, showHeader = true, displayOptions = defaultDisplayOptions }: {
+    displayOptions?: DisplayOptions;
     item: ProjectedEntry; results: ProjectedEntry[]; instanceId: string; expand: (id: string) => Promise<void>;
     subscribeTool?: (ids: string[], expanded: boolean) => void;
     tools: Map<string, ToolProgress>;
@@ -83,11 +85,11 @@
         {#each typeof entry.message.content === "string" ? [{ type: "text" as const, text: entry.message.content }] : entry.message.content as block, index}
           {#if block.type === "text"}
             <div class="markdown">{@html markdown(block.text, instanceId)}</div>
-          {:else if block.type === "thinking"}
+          {:else if block.type === "thinking" && displayOptions.thinking}
             <small class="muted-meta thinking-content markdown">{@html markdown(block.thinking, instanceId)}</small>
           {:else if block.type === "image"}
             <BlobImage {instanceId} entryId={entry.id} path={["message", "content", index, "data"]} />
-          {:else if block.type === "toolCall"}
+          {:else if block.type === "toolCall" && displayOptions.tools}
             {#if block.name !== "read" || !readAt(entry.message.content, index - 1)}
               <HistoryToolView calls={block.name === "read" ? readCalls(entry.message.content, index) : [block]}
                 {results} {instanceId} entryId={entry.id} {expand} {subscribeTool} {tools} {toolDurations} />

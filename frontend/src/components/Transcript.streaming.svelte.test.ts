@@ -4,6 +4,57 @@ import { flushSync, mount, tick, unmount } from "svelte";
 import type { LiveMessage, ProjectedEntry, ToolProgress } from "@pirc/api";
 import Transcript from "./Transcript.svelte";
 import type { CachedToolObject } from "../lib/mirror/mirror-store.svelte.ts";
+import { defaultDisplayOptions } from "../lib/display-options.ts";
+
+test("display toggles hide history and live auxiliary content without losing it", async () => {
+  let displayOptions = $state({ ...defaultDisplayOptions });
+  const entries = [
+    { index: 0, entry: { id: "system", parentId: null, timestamp: "", type: "message",
+      message: { role: "system", content: "system-note" } } },
+    { index: 1, entry: { id: "assistant", parentId: "system", timestamp: "", type: "message",
+      message: { role: "assistant", content: [
+        { type: "text", text: "answer-body" },
+        { type: "thinking", thinking: "history-thinking" },
+        { type: "toolCall", id: "call", name: "bash", arguments: { command: "echo history-tool" } },
+      ] } } },
+    { index: 2, entry: { id: "model", parentId: "assistant", timestamp: "", type: "model_change", provider: "provider-note", modelId: "model-note" } },
+  ] as unknown as ProjectedEntry[];
+  const target = document.createElement("div");
+  const component = mount(Transcript, { target, props: {
+    entries, instanceId: "session", expand: async () => {}, tools: new Map(), toolDurations: new Map(),
+    hasMore: false, streaming: true, loadMore: async () => {},
+    get displayOptions() { return displayOptions; },
+    live: { provider: "p", model: "m", startedAt: 1, content: [
+      { type: "thinking", thinking: "live-thinking" },
+      { type: "toolCall", id: "live-call", name: "bash", arguments: { command: "echo live-tool" } },
+    ] },
+  } });
+  try {
+    flushSync();
+    for (const text of ["system-note", "history-thinking", "history-tool", "model-note", "live-thinking", "live-tool"]) {
+      expect(target.textContent).toContain(text);
+    }
+    displayOptions = { tools: false, thinking: true, system: true };
+    await tick();
+    expect(target.textContent).not.toContain("history-tool");
+    expect(target.textContent).not.toContain("live-tool");
+    expect(target.textContent).toContain("history-thinking");
+    displayOptions = { tools: false, thinking: false, system: false };
+    await tick();
+    expect(target.textContent).toContain("answer-body");
+    for (const text of ["system-note", "history-thinking", "model-note", "live-thinking"]) {
+      expect(target.textContent).not.toContain(text);
+    }
+    expect(target.querySelector(".live")).toBeNull();
+    displayOptions = { ...defaultDisplayOptions };
+    await tick();
+    for (const text of ["system-note", "history-thinking", "history-tool", "model-note", "live-thinking", "live-tool"]) {
+      expect(target.textContent).toContain(text);
+    }
+  } finally {
+    await unmount(component);
+  }
+});
 
 test("expanded bash survives live updates and history handoff, then loads the completed result", async () => {
   const call = { type: "toolCall" as const, id: "bash-1", name: "bash", arguments: { command: "echo done" } };

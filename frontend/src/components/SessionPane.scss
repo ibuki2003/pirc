@@ -4,6 +4,35 @@
   flex-direction: column;
   overflow: hidden;
 
+  .display-controls {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    gap: .25rem;
+    padding: .15rem .75rem;
+    .display-toggle {
+      min-width: 0;
+      height: 26px;
+      padding: 0 .5rem;
+      font-size: .7rem;
+      letter-spacing: .02em;
+      text-transform: none;
+      opacity: .5;
+      &.active {
+        opacity: 1;
+        background: #8894a922;
+        box-shadow: inset 0 -2px currentColor;
+      }
+    }
+    .display-reset {
+      width: 28px;
+      height: 28px;
+      padding: 6px;
+      --mdc-icon-button-size: 28px;
+      svg { width: 16px; height: 16px; fill: currentColor; }
+    }
+  }
+
   .session-bar {
     flex-shrink: 0;
     .mdc-top-app-bar__row { height: auto; min-height: 3.5rem; }
